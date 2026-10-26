@@ -1,0 +1,18 @@
+pmOnFail: ignore
+
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - next
+
+allowBuilds:
+  esbuild: false
+  workerd: false
+
+permissions:
+  '@prisma/client':
+    build: false
+  '@prisma/engines':
+    build: false
+  prisma:
+    build: false
+    skills: false
