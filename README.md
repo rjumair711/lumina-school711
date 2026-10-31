@@ -7,8 +7,8 @@ Lumina School is a full-stack, responsive school administration dashboard built 
 - **Real-Time Authentication:** Secure login and registration using NextAuth v5, credential validation, and bcrypt password hashing.
 - **Protected Routes:** Server-side session validation for the Admin dashboard.
 - **School Workspace Creation:** Unified registration flow to create a school instance and an initial admin account simultaneously.
-- **Comprehensive CRUD Operations:** Full management of Student and Teacher records, including adding, updating, and deleting profiles directly synced with the database.
-- **Dynamic Profiles:** Individual, detailed dynamic pages for teachers and students (`/admin/teachers/[id]` and `/admin/students/[id]`) showcasing assigned classes, subjects, and professional details.
+- **Comprehensive CRUD Operations:** Full management of Student, Teacher, and Class records, including adding, updating, and deleting records directly synced with the database with safety guardrails.
+- **Dynamic Profiles:** Individual, detailed dynamic pages for students, teachers, and classes (`/admin/students/[id]`, `/admin/teachers/[id]`, and `/admin/classes/[id]`) showcasing student rosters, assigned subjects, and professional details.
 - **Role-Based Access:** Infrastructure ready for Admin, Teacher, Student, and Parent roles.
 - **Responsive Design:** Mobile-first layouts using Tailwind CSS for all viewports.
 
@@ -34,6 +34,9 @@ lumina-school/
 │   ├── admin/
 │   │   ├── layout.tsx                  # Protected admin layout
 │   │   ├── page.tsx                    # Admin dashboard view
+│   │   ├── classes/
+│   │   │   ├── page.tsx                # Classes directory & management
+│   │   │   └── [id]/page.tsx           # Dynamic class roster & detail page
 │   │   ├── students/
 │   │   │   ├── page.tsx                # Students directory
 │   │   │   └── [id]/page.tsx           # Dynamic student profile page

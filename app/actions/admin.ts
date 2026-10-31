@@ -260,3 +260,86 @@ export async function deleteTeacherAction(teacherId: string) {
     return { success: false, error: 'Failed to delete teacher.' }
   }
 }
+
+
+// --- CLASSES ---
+
+export async function addClassAction(formData: FormData) {
+  try {
+    const name = formData.get('name') as string
+    const section = formData.get('section') as string
+    const capacity = parseInt(formData.get('capacity') as string) || 30
+    const classTeacherId = formData.get('classTeacherId') as string
+    const finalTeacherId = classTeacherId && classTeacherId !== '' ? classTeacherId : null
+
+    const school = await prisma.school.findFirst()
+    if (!school) throw new Error('No school configured in the database.')
+
+    // Check for duplicate Class+Section in this school
+    const existing = await prisma.class.findFirst({
+      where: { name, section, schoolId: school.id }
+    })
+    if (existing) return { success: false, error: `Class ${name}-${section} already exists.` }
+
+    await prisma.class.create({
+      data: {
+        name,
+        section,
+        capacity,
+        classTeacherId: finalTeacherId,
+        schoolId: school.id
+      }
+    })
+
+    revalidatePath('/admin/classes')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to add class:', error)
+    return { success: false, error: 'Failed to add class to database.' }
+  }
+}
+
+export async function updateClassAction(id: string, formData: FormData) {
+  try {
+    const name = formData.get('name') as string
+    const section = formData.get('section') as string
+    const capacity = parseInt(formData.get('capacity') as string) || 30
+    const classTeacherId = formData.get('classTeacherId') as string
+    const finalTeacherId = classTeacherId && classTeacherId !== '' ? classTeacherId : null
+
+    await prisma.class.update({
+      where: { id },
+      data: { name, section, capacity, classTeacherId: finalTeacherId }
+    })
+
+    revalidatePath('/admin/classes')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to update class:', error)
+    return { success: false, error: 'Failed to update class. This name and section combination might already exist.' }
+  }
+}
+
+export async function deleteClassAction(id: string) {
+  try {
+    const classData = await prisma.class.findUnique({
+      where: { id },
+      include: { _count: { select: { students: true } } }
+    })
+
+    if (!classData) return { success: false, error: 'Class not found.' }
+    
+    // Guardrail: Do not delete if students are still enrolled
+    if (classData._count.students > 0) {
+      return { success: false, error: `Cannot delete class. Reassign or remove the ${classData._count.students} enrolled students first.` }
+    }
+
+    await prisma.class.delete({ where: { id } })
+    
+    revalidatePath('/admin/classes')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to delete class:', error)
+    return { success: false, error: 'Failed to delete class.' }
+  }
+}
