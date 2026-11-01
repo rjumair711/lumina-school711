@@ -50,17 +50,18 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users          User[]
-  students       Student[]
-  teachers       Teacher[]
-  classes        Class[]
-  subjects       Subject[]
-  notices        Notice[]
-  homeworks      Homework[]
-  fees           Fee[]
-  exams          Exam[]
-  tests          Test[]
-  studyMaterials StudyMaterial[]
+  teacherAttendances TeacherAttendance[]
+  users              User[]
+  students           Student[]
+  teachers           Teacher[]
+  classes            Class[]
+  subjects           Subject[]
+  notices            Notice[]
+  homeworks          Homework[]
+  fees               Fee[]
+  exams              Exam[]
+  tests              Test[]
+  studyMaterials     StudyMaterial[]
 }
 
 model User {
@@ -192,9 +193,10 @@ model Teacher {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  classes       Class[]   @relation("ClassTeachers")
-  headOfClasses Class[]   @relation("ClassTeacherHead")
-  subjects      Subject[]
+  classes            Class[]             @relation("ClassTeachers")
+  headOfClasses      Class[]             @relation("ClassTeacherHead")
+  subjects           Subject[]
+  teacherAttendances TeacherAttendance[]
 
   timetables     TimetableSlot[]
   homeworks      Homework[]
@@ -213,8 +215,9 @@ model Subject {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  classes  Class[]
-  teachers Teacher[]
+  classes     Class[]
+  teachers    Teacher[]
+  attendances Attendance[]
 
   timetables     TimetableSlot[]
   homeworks      Homework[]
@@ -227,6 +230,7 @@ model Subject {
   @@unique([code, schoolId])
 }
 
+// 1. Update the existing Attendance model to support optional subjects
 model Attendance {
   id     String           @id @default(cuid())
   date   DateTime
@@ -238,10 +242,32 @@ model Attendance {
   classId String
   class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
+  // NEW: Optional subject relation for subject-wise attendance
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([studentId, date])
+  @@unique([studentId, date, subjectId]) // Updated unique constraint
+}
+
+// 2. Add this NEW model for Teacher Attendance
+model TeacherAttendance {
+  id     String           @id @default(cuid())
+  date   DateTime
+  status AttendanceStatus @default(PRESENT)
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, date])
 }
 
 model Fee {
