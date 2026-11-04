@@ -1,4 +1,9 @@
-import SubjectClassPage from "@/components/dashboard/subject-class-page";
 
+import { getSubjectClassData } from '@/app/actions/subject-class'
+import SubjectClassPage from '@/components/dashboard/subject-class-page'
 
-export default function Page() { return <SubjectClassPage /> }
+export default async function Page() {
+  const initialData = await getSubjectClassData()
+
+  return <SubjectClassPage initialData={initialData} />
+}

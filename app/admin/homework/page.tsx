@@ -1,3 +1,9 @@
+import { getHomeworkDashboardData } from '@/app/actions/homework'
 import HomeworkPage from '@/components/dashboard/homework-page'
 
-export default function Page() { return <HomeworkPage /> }
+export const dynamic = 'force-dynamic'
+
+export default async function Page() {
+  const data = await getHomeworkDashboardData()
+  return <HomeworkPage initialData={data} />
+}

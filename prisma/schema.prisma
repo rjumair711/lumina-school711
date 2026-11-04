@@ -50,6 +50,7 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  subjectAssignments ClassSubjectAssignment[]
   teacherAttendances TeacherAttendance[]
   users              User[]
   students           Student[]
@@ -138,13 +139,14 @@ model Class {
   classTeacherId String?
   classTeacher   Teacher?  @relation("ClassTeacherHead", fields: [classTeacherId], references: [id], onDelete: SetNull)
 
-  subjects       Subject[]
-  timetables     TimetableSlot[]
-  homeworks      Homework[]
-  exams          Exam[]
-  tests          Test[]
-  studyMaterials StudyMaterial[]
-  attendances    Attendance[]
+  subjectAssignments ClassSubjectAssignment[]
+  subjects           Subject[]
+  timetables         TimetableSlot[]
+  homeworks          Homework[]
+  exams              Exam[]
+  tests              Test[]
+  studyMaterials     StudyMaterial[]
+  attendances        Attendance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,8 +195,9 @@ model Teacher {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  classes            Class[]             @relation("ClassTeachers")
-  headOfClasses      Class[]             @relation("ClassTeacherHead")
+  subjectAssignments ClassSubjectAssignment[]
+  classes            Class[]                  @relation("ClassTeachers")
+  headOfClasses      Class[]                  @relation("ClassTeacherHead")
   subjects           Subject[]
   teacherAttendances TeacherAttendance[]
 
@@ -215,9 +218,10 @@ model Subject {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  classes     Class[]
-  teachers    Teacher[]
-  attendances Attendance[]
+  subjectAssignments ClassSubjectAssignment[]
+  classes            Class[]
+  teachers           Teacher[]
+  attendances        Attendance[]
 
   timetables     TimetableSlot[]
   homeworks      Homework[]
@@ -421,4 +425,24 @@ model StudyMaterial {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ClassSubjectAssignment {
+  id        String  @id @default(cuid())
+  schoolId  String
+  classId   String
+  subjectId String
+  teacherId String?
+
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class   Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, subjectId])
+  @@index([schoolId, classId])
+  @@index([schoolId, teacherId])
 }
