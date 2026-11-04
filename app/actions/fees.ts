@@ -19,14 +19,14 @@ export async function createClassFeeAction(formData: FormData) {
     if (!school) return { success: false, error: 'School not found' }
 
     const students = await prisma.student.findMany({ where: { classId } })
-    
+
     if (students.length === 0) {
       return { success: false, error: 'No students found in this class' }
     }
 
     const dueDate = new Date(dueDateStr)
 
-    const feeOperations = students.map(student => 
+    const feeOperations = students.map(student =>
       prisma.fee.create({
         data: {
           title,
@@ -41,7 +41,8 @@ export async function createClassFeeAction(formData: FormData) {
 
     await prisma.$transaction(feeOperations)
     revalidatePath('/admin/fees')
-    
+    revalidatePath('/admin/students')
+
     return { success: true }
   } catch (error) {
     console.error('Failed to create fee:', error)
@@ -90,6 +91,7 @@ export async function recordFeePaymentAction(formData: FormData) {
     })
 
     revalidatePath('/admin/fees')
+    revalidatePath('/admin/students')
     return { success: true, receiptNo }
   } catch (error) {
     console.error('Failed to record payment:', error)

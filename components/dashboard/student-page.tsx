@@ -21,7 +21,7 @@ type Student = {
   parentEmail: string
   address: string
   attendanceValue: number
-  feeStatus: string
+  feeStatus: 'Paid' | 'Partial' | 'Pending' | 'Not Assigned'
 }
 
 type ClassItem = { id: string; name: string; section: string }
@@ -32,6 +32,9 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
   const [classOpen, setClassOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [selectedClass, setSelectedClass] = useState('All Classes')
+  const [selectedStatus, setSelectedStatus] = useState('All Status')
 
   const filterClasses = ['All Classes', ...dbClasses.map((c) => `Class ${c.name}-${c.section}`)]
   const statuses = ['All Status', 'Paid', 'Pending']
@@ -66,6 +69,26 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
     }
   }
 
+
+  const filteredStudents = students.filter((student) => {
+    const searchTerm = search.trim().toLowerCase()
+
+    const matchesSearch =
+      student.name.toLowerCase().includes(searchTerm) ||
+      student.roll.toLowerCase().includes(searchTerm)
+
+    const matchesClass =
+      selectedClass === 'All Classes' ||
+      selectedClass === `Class ${student.cls}`
+
+    const matchesStatus =
+      selectedStatus === 'All Status' ||
+      student.feeStatus === selectedStatus
+
+    return matchesSearch && matchesClass && matchesStatus
+  })
+
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -86,23 +109,32 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
         <div className="relative min-w-[240px] flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none focus:border-[#FF6B35]"
             placeholder="Search by name or roll number..."
           />
         </div>
         <div className="relative w-[180px]">
           <button
+            type="button"
             onClick={() => setClassOpen(!classOpen)}
             className="flex h-10 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600"
           >
-            All Classes <ChevronDown className="size-4" />
+            {selectedClass}
+            <ChevronDown className="size-4" />
           </button>
+
           {classOpen && (
             <div className="absolute z-10 mt-2 w-full rounded-xl border bg-white p-1 shadow-xl">
               {filterClasses.map((item) => (
                 <button
                   key={item}
-                  onClick={() => setClassOpen(false)}
+                  type="button"
+                  onClick={() => {
+                    setSelectedClass(item)
+                    setClassOpen(false)
+                  }}
                   className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-indigo-50"
                 >
                   {item}
@@ -113,17 +145,24 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
         </div>
         <div className="relative w-[160px]">
           <button
+            type="button"
             onClick={() => setStatusOpen(!statusOpen)}
             className="flex h-10 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600"
           >
-            All Status <ChevronDown className="size-4" />
+            {selectedStatus}
+            <ChevronDown className="size-4" />
           </button>
+
           {statusOpen && (
             <div className="absolute z-10 mt-2 w-full rounded-xl border bg-white p-1 shadow-xl">
               {statuses.map((item) => (
                 <button
                   key={item}
-                  onClick={() => setStatusOpen(false)}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStatus(item)
+                    setStatusOpen(false)
+                  }}
                   className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-indigo-50"
                 >
                   {item}
@@ -133,7 +172,6 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
           )}
         </div>
       </div>
-
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -148,7 +186,7 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
               </tr>
             </thead>
             <tbody>
-              {students.map((student) => (
+              {filteredStudents.map((student) => (
                 <tr key={student.id} className="border-b transition-colors hover:bg-slate-50/80 last:border-0">
                   <td className="px-5 py-4">
                     <Link href={`/admin/students/${student.id}`} className="group flex items-center gap-3">
@@ -167,7 +205,21 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
                   <td className="px-5 py-4">{student.roll}</td>
                   <td className="px-5 py-4">{student.attendanceValue}%</td>
                   <td className="px-5 py-4">
-                    <Badge variant="secondary">{student.feeStatus}</Badge>
+
+                    <Badge
+                      variant="secondary"
+                      className={
+                        student.feeStatus === 'Paid'
+                          ? 'border-0 bg-emerald-50 text-emerald-700'
+                          : student.feeStatus === 'Partial'
+                            ? 'border-0 bg-amber-50 text-amber-700'
+                            : student.feeStatus === 'Pending'
+                              ? 'border-0 bg-rose-50 text-rose-700'
+                              : 'border-0 bg-slate-100 text-slate-600'
+                      }
+                    >
+                      {student.feeStatus}
+                    </Badge>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -197,7 +249,7 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
                   </td>
                 </tr>
               ))}
-              {students.length === 0 && (
+              {filteredStudents.length === 0 && (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-500">
                     No students found. Add one above!
