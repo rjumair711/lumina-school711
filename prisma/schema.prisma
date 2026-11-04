@@ -50,6 +50,7 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  schoolPeriods      SchoolPeriod[]
   subjectAssignments ClassSubjectAssignment[]
   teacherAttendances TeacherAttendance[]
   users              User[]
@@ -445,4 +446,22 @@ model ClassSubjectAssignment {
   @@unique([classId, subjectId])
   @@index([schoolId, classId])
   @@index([schoolId, teacherId])
+}
+
+model SchoolPeriod {
+  id        String  @id @default(cuid())
+  schoolId  String
+  name      String
+  startTime String
+  endTime   String
+  sortOrder Int     @default(0)
+  isBreak   Boolean @default(false)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, name])
+  @@index([schoolId, sortOrder])
 }
