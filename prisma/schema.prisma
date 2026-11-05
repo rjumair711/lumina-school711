@@ -64,20 +64,21 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  schoolPeriods      SchoolPeriod[]
-  subjectAssignments ClassSubjectAssignment[]
-  teacherAttendances TeacherAttendance[]
-  users              User[]
-  students           Student[]
-  teachers           Teacher[]
-  classes            Class[]
-  subjects           Subject[]
-  notices            Notice[]
-  homeworks          Homework[]
-  fees               Fee[]
-  exams              Exam[]
-  tests              Test[]
-  studyMaterials     StudyMaterial[]
+  communicationThreads CommunicationThread[]
+  schoolPeriods        SchoolPeriod[]
+  subjectAssignments   ClassSubjectAssignment[]
+  teacherAttendances   TeacherAttendance[]
+  users                User[]
+  students             Student[]
+  teachers             Teacher[]
+  classes              Class[]
+  subjects             Subject[]
+  notices              Notice[]
+  homeworks            Homework[]
+  fees                 Fee[]
+  exams                Exam[]
+  tests                Test[]
+  studyMaterials       StudyMaterial[]
 }
 
 model User {
@@ -97,6 +98,10 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  threadsAsParticipantA CommunicationThread[]  @relation("CommunicationParticipantA")
+  threadsAsParticipantB CommunicationThread[]  @relation("CommunicationParticipantB")
+  sentMessages          CommunicationMessage[] @relation("CommunicationMessageSender")
 
   authoredNotices Notice[]  @relation("NoticeAuthors")
   accounts        Account[]
@@ -496,4 +501,48 @@ model SchoolPeriod {
 
   @@unique([schoolId, name])
   @@index([schoolId, sortOrder])
+}
+
+model CommunicationThread {
+  id String @id @default(cuid())
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  participantAId String
+  participantBId String
+
+  participantA User @relation("CommunicationParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB User @relation("CommunicationParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  messages CommunicationMessage[]
+
+  lastMessageAt DateTime?
+  readAtA       DateTime?
+  readAtB       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, participantAId, participantBId])
+  @@index([schoolId, lastMessageAt])
+  @@index([participantAId])
+  @@index([participantBId])
+}
+
+model CommunicationMessage {
+  id String @id @default(cuid())
+
+  threadId String
+  thread   CommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("CommunicationMessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([senderId])
 }
