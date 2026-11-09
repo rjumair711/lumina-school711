@@ -10,9 +10,9 @@ allowBuilds:
 
 permissions:
   '@prisma/client':
-    build: false
+    build: true
   '@prisma/engines':
-    build: false
+    build: true
   prisma:
-    build: false
+    build: true
     skills: false
