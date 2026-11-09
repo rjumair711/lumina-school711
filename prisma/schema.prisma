@@ -65,6 +65,8 @@ model School {
   updatedAt DateTime @updatedAt
 
   communicationThreads CommunicationThread[]
+  aiSettings           AiSettings?
+  permissionLogs       PermissionLog[]
   schoolPeriods        SchoolPeriod[]
   subjectAssignments   ClassSubjectAssignment[]
   teacherAttendances   TeacherAttendance[]
@@ -103,7 +105,8 @@ model User {
   threadsAsParticipantB CommunicationThread[]  @relation("CommunicationParticipantB")
   sentMessages          CommunicationMessage[] @relation("CommunicationMessageSender")
 
-  authoredNotices Notice[]  @relation("NoticeAuthors")
+  authoredNotices   Notice[]        @relation("NoticeAuthors")
+  permissionChanges PermissionLog[] @relation("PermissionChangedBy")
   accounts        Account[]
   sessions        Session[]
 }
@@ -199,6 +202,8 @@ model Student {
 
   attendances Attendance[]
   fees        Fee[]
+  testResults TestResult[]
+  examResults ExamResult[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -210,6 +215,11 @@ model Teacher {
   phone         String?
   qualification String?
   experience    String?
+
+  // Keys from lib/permissions.ts, e.g. "attendance.mark"
+  permissions          String[]  @default([])
+  permissionsUpdatedAt DateTime?
+  permissionLogs       PermissionLog[]
 
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -248,6 +258,7 @@ model Subject {
   timetables     TimetableSlot[]
   homeworks      Homework[]
   tests          Test[]
+  examPapers     ExamPaper[]
   studyMaterials StudyMaterial[]
 
   createdAt DateTime @default(now())
@@ -403,12 +414,13 @@ model Notice {
 }
 
 model Test {
-  id         String   @id @default(cuid())
-  title      String // e.g. "Unit Test 2"
-  totalMarks Int
-  duration   Int // in minutes
-  date       DateTime
-  status     String   @default("Scheduled") // Scheduled, Completed
+  id           String   @id @default(cuid())
+  title        String // e.g. "Unit Test 2"
+  totalMarks   Int
+  passingMarks Int?
+  duration     Int // in minutes
+  date         DateTime
+  status       String   @default("Scheduled") // Draft, Scheduled, Completed, Cancelled
 
   classId String
   class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -419,8 +431,13 @@ model Test {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  results TestResult[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([schoolId, date])
+  @@index([classId])
 }
 
 model Exam {
@@ -429,7 +446,7 @@ model Exam {
   examType  String // e.g. "Annual Exam", "Mid Term"
   startDate DateTime
   endDate   DateTime
-  status    String   @default("Scheduled")
+  status    String   @default("Scheduled") // Draft, Scheduled, Completed, Cancelled
 
   classId String
   class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -437,17 +454,91 @@ model Exam {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  papers ExamPaper[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([schoolId, startDate])
+  @@index([classId])
+}
+
+// One subject paper inside an exam (e.g. Term 1 → Mathematics on 12 Sep).
+model ExamPaper {
+  id           String   @id @default(cuid())
+  date         DateTime
+  totalMarks   Int
+  passingMarks Int?
+
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  results ExamResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, subjectId])
+  @@index([subjectId])
+}
+
+// Marks a student obtained in a class test.
+model TestResult {
+  id            String  @id @default(cuid())
+  marksObtained Float?
+  isAbsent      Boolean @default(false)
+  remarks       String?
+
+  testId String
+  test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+}
+
+// Marks a student obtained in one exam paper.
+model ExamResult {
+  id            String  @id @default(cuid())
+  marksObtained Float?
+  isAbsent      Boolean @default(false)
+  remarks       String?
+
+  paperId String
+  paper   ExamPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paperId, studentId])
+  @@index([studentId])
 }
 
 model StudyMaterial {
   id          String  @id @default(cuid())
   title       String
-  type        String // "Worksheet", "Notes", "Paper", "Pdf"
+  type        String // see MATERIAL_TYPES in lib/materials.ts
   description String?
-  fileUrl     String?
+  fileUrl     String? // external link (Drive, YouTube...) when there is no uploaded file
   downloads   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  // Uploaded file metadata (bytes live in StudyMaterialFile)
+  fileName String?
+  fileSize Int?
+  mimeType String?
+  file     StudyMaterialFile?
 
   classId String
   class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -455,14 +546,30 @@ model StudyMaterial {
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  teacherId String
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  // Teacher credited for the material (optional; admins can upload too)
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  uploadedByName String?
 
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([schoolId, createdAt])
+  @@index([classId])
+  @@index([subjectId])
+}
+
+// File contents kept apart so listing materials never loads the bytes.
+model StudyMaterialFile {
+  id         String        @id @default(cuid())
+  materialId String        @unique
+  material   StudyMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  data       Bytes
+  createdAt  DateTime      @default(now())
 }
 
 model ClassSubjectAssignment {
@@ -545,4 +652,47 @@ model CommunicationMessage {
 
   @@index([threadId, createdAt])
   @@index([senderId])
+}
+
+// Audit trail of permission changes made by administrators.
+model PermissionLog {
+  id String @id @default(cuid())
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  changedById   String?
+  changedBy     User?   @relation("PermissionChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  changedByName String
+
+  added   String[] @default([])
+  removed String[] @default([])
+  note    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([teacherId, createdAt])
+}
+
+// Per-school AI provider settings. The API key is stored encrypted
+// (AES-256-GCM, see lib/ai/crypto.ts) and is never sent to the browser.
+model AiSettings {
+  id       String @id @default(cuid())
+  schoolId String @unique
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  provider     String // id from lib/ai/provider-catalog.ts
+  model        String
+  baseUrl      String?
+  apiKeyCipher String?
+  apiKeyHint   String? // last 4 characters, for display only
+  enabled      Boolean @default(true)
+
+  updatedByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

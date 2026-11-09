@@ -1,14 +1,16 @@
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ClassDetailPage from '@/components/dashboard/class-detail-page'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
+    const { schoolId } = await requireSchoolAdminPage()
 
-    const classData = await prisma.class.findUnique({
-        where: { id },
+    const classData = await prisma.class.findFirst({
+        where: { id, schoolId },
         include: {
             classTeacher: { include: { user: true } },
             students: { include: { user: true } },

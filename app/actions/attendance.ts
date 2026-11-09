@@ -3,58 +3,88 @@
 import prisma from '@/lib/prisma'
 import { AttendanceStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import {
+  accessErrorMessage,
+  parseLocalDay,
+  requireSchoolAdmin,
+} from '@/lib/school-auth'
+
+const STATUSES = Object.values(AttendanceStatus)
+
+function failure(error: unknown, fallback: string) {
+  const access = accessErrorMessage(error)
+  if (!access) console.error(fallback, error)
+  return { success: false as const, error: access ?? fallback }
+}
+
+function normalizeSubject(subjectId?: string) {
+  return subjectId && subjectId !== 'all' ? subjectId : null
+}
 
 // --- STUDENT ATTENDANCE ---
-// Replace ONLY the getAttendanceList function in app/actions/attendance.ts
 
-export async function getAttendanceList(classId: string, fromDateStr: string, toDateStr: string, subjectId?: string) {
+export async function getAttendanceList(
+  classId: string,
+  fromDateStr: string,
+  toDateStr: string,
+  subjectId?: string
+) {
   try {
-    const fromDate = new Date(fromDateStr)
-    fromDate.setHours(0, 0, 0, 0)
+    const { schoolId } = await requireSchoolAdmin()
 
-    const toDate = new Date(toDateStr)
-    toDate.setHours(23, 59, 59, 999)
+    const fromDate = parseLocalDay(fromDateStr, 'start')
+    const toDate = parseLocalDay(toDateStr, 'end')
+    if (!fromDate || !toDate || fromDate > toDate) {
+      return { success: false as const, error: 'Invalid date range.' }
+    }
 
-    const students = await prisma.student.findMany({
-      where: { classId },
-      include: { user: true },
-      orderBy: { rollNo: 'asc' }
+    const cls = await prisma.class.findFirst({
+      where: { id: classId, schoolId },
+      select: { id: true },
     })
+    if (!cls) return { success: false as const, error: 'Class not found in your school.' }
 
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: {
-        classId,
-        date: { gte: fromDate, lte: toDate },
-        ...(subjectId && subjectId !== 'all' ? { subjectId } : { subjectId: null })
-      }
-    })
+    const subject = normalizeSubject(subjectId)
 
-    const isSingleDay = fromDateStr === toDateStr;
+    const [students, attendanceRecords] = await Promise.all([
+      prisma.student.findMany({
+        where: { classId, schoolId },
+        include: { user: true },
+        orderBy: { rollNo: 'asc' },
+      }),
+      prisma.attendance.findMany({
+        where: {
+          classId,
+          date: { gte: fromDate, lte: toDate },
+          subjectId: subject,
+        },
+      }),
+    ])
+
+    const isSingleDay = fromDateStr === toDateStr
 
     return {
-      success: true,
-      data: students.map(student => {
-        const studentRecords = attendanceRecords.filter(a => a.studentId === student.id)
+      success: true as const,
+      data: students.map((student) => {
+        const studentRecords = attendanceRecords.filter((a) => a.studentId === student.id)
 
         return {
           studentId: student.id,
           name: student.user?.name || 'Unknown',
           rollNo: student.rollNo,
-          // If viewing a single day, load the specific status for the dropdown
-          status: isSingleDay ? (studentRecords[0]?.status || 'PRESENT') : 'PRESENT',
-          // Calculate summary metrics for the selected date range
+          // For a single day, preload the saved status for the dropdown.
+          status: isSingleDay ? studentRecords[0]?.status || 'PRESENT' : 'PRESENT',
           summary: {
-            present: studentRecords.filter(r => r.status === 'PRESENT').length,
-            absent: studentRecords.filter(r => r.status === 'ABSENT').length,
-            late: studentRecords.filter(r => r.status === 'LATE').length,
-            excused: studentRecords.filter(r => r.status === 'EXCUSED').length,
-          }
+            present: studentRecords.filter((r) => r.status === 'PRESENT').length,
+            absent: studentRecords.filter((r) => r.status === 'ABSENT').length,
+            late: studentRecords.filter((r) => r.status === 'LATE').length,
+            excused: studentRecords.filter((r) => r.status === 'EXCUSED').length,
+          },
         }
-      })
+      }),
     }
   } catch (error) {
-    console.error('Error fetching attendance:', error)
-    return { success: false, error: 'Failed to fetch students' }
+    return failure(error, 'Failed to fetch students')
   }
 }
 
@@ -65,98 +95,164 @@ export async function saveDailyAttendance(
   subjectId?: string
 ) {
   try {
-    const targetDate = new Date(dateStr)
-    targetDate.setHours(12, 0, 0, 0)
+    const { schoolId } = await requireSchoolAdmin()
 
-    const operations = records.map(record => {
-      const uniqueWhere = subjectId
-        ? { studentId_date_subjectId: { studentId: record.studentId, date: targetDate, subjectId } }
-        : { studentId_date_subjectId: { studentId: record.studentId, date: targetDate, subjectId: null } }
+    const day = parseLocalDay(dateStr, 'start')
+    const targetDate = parseLocalDay(dateStr, 'noon')
+    const dayEnd = parseLocalDay(dateStr, 'end')
+    if (!day || !targetDate || !dayEnd) {
+      return { success: false as const, error: 'Invalid date.' }
+    }
 
-      return prisma.attendance.upsert({
-        where: uniqueWhere as any,
-        update: { status: record.status },
-        create: {
-          date: targetDate,
-          status: record.status,
-          studentId: record.studentId,
-          classId: classId,
-          subjectId: subjectId || null
-        }
+    if (!Array.isArray(records) || records.some((r) => !STATUSES.includes(r.status))) {
+      return { success: false as const, error: 'Invalid attendance status.' }
+    }
+
+    const subject = normalizeSubject(subjectId)
+
+    const [cls, subjectRow, students] = await Promise.all([
+      prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true } }),
+      subject
+        ? prisma.subject.findFirst({ where: { id: subject, schoolId }, select: { id: true } })
+        : Promise.resolve({ id: '' }),
+      prisma.student.findMany({
+        where: { classId, schoolId, id: { in: records.map((r) => r.studentId) } },
+        select: { id: true },
+      }),
+    ])
+
+    if (!cls) return { success: false as const, error: 'Class not found in your school.' }
+    if (!subjectRow) return { success: false as const, error: 'Subject not found in your school.' }
+
+    const allowed = new Set(students.map((s) => s.id))
+    const valid = records.filter((r) => allowed.has(r.studentId))
+    if (valid.length !== records.length) {
+      return { success: false as const, error: 'Some students do not belong to this class.' }
+    }
+
+    // A NULL subjectId cannot be matched by Postgres unique upserts, so
+    // we look up existing rows for that day and update or create explicitly.
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.attendance.findMany({
+        where: {
+          classId,
+          subjectId: subject,
+          date: { gte: day, lte: dayEnd },
+          studentId: { in: valid.map((r) => r.studentId) },
+        },
+        select: { id: true, studentId: true, status: true },
       })
+      const byStudent = new Map(existing.map((e) => [e.studentId, e]))
+
+      for (const record of valid) {
+        const row = byStudent.get(record.studentId)
+        if (row) {
+          if (row.status !== record.status) {
+            await tx.attendance.update({
+              where: { id: row.id },
+              data: { status: record.status },
+            })
+          }
+        } else {
+          await tx.attendance.create({
+            data: {
+              date: targetDate,
+              status: record.status,
+              studentId: record.studentId,
+              classId,
+              subjectId: subject,
+            },
+          })
+        }
+      }
     })
 
-    await prisma.$transaction(operations)
     revalidatePath('/admin/attendance')
-    return { success: true }
+    revalidatePath('/admin/reports')
+    return { success: true as const }
   } catch (error) {
-    console.error('Error saving attendance:', error)
-    return { success: false, error: 'Failed to save attendance' }
+    return failure(error, 'Failed to save attendance')
   }
 }
 
 // --- TEACHER ATTENDANCE ---
-export async function getTeacherAttendance(schoolId: string, dateStr: string) {
+
+export async function getTeacherAttendance(dateStr: string) {
   try {
-    const targetDate = new Date(dateStr)
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0))
-    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999))
+    const { schoolId } = await requireSchoolAdmin()
 
-    const teachers = await prisma.teacher.findMany({
-      where: { schoolId },
-      include: { user: true },
-      orderBy: { teacherId: 'asc' }
-    })
+    const startOfDay = parseLocalDay(dateStr, 'start')
+    const endOfDay = parseLocalDay(dateStr, 'end')
+    if (!startOfDay || !endOfDay) return { success: false as const, error: 'Invalid date.' }
 
-    const records = await prisma.teacherAttendance.findMany({
-      where: { schoolId, date: { gte: startOfDay, lte: endOfDay } }
-    })
+    const [teachers, records] = await Promise.all([
+      prisma.teacher.findMany({
+        where: { schoolId },
+        include: { user: true },
+        orderBy: { teacherId: 'asc' },
+      }),
+      prisma.teacherAttendance.findMany({
+        where: { schoolId, date: { gte: startOfDay, lte: endOfDay } },
+      }),
+    ])
 
     return {
-      success: true,
-      data: teachers.map(teacher => {
-        const record = records.find(r => r.teacherId === teacher.id)
+      success: true as const,
+      data: teachers.map((teacher) => {
+        const record = records.find((r) => r.teacherId === teacher.id)
         return {
           teacherId: teacher.id,
           displayId: teacher.teacherId,
           name: teacher.user?.name || 'Unknown',
-          status: record?.status || 'PRESENT'
+          status: record?.status || 'PRESENT',
         }
-      })
+      }),
     }
   } catch (error) {
-    console.error('Error fetching teacher attendance:', error)
-    return { success: false, error: 'Failed to fetch teachers' }
+    return failure(error, 'Failed to fetch teachers')
   }
 }
 
 export async function saveTeacherAttendance(
-  schoolId: string,
   dateStr: string,
   records: { teacherId: string; status: AttendanceStatus }[]
 ) {
   try {
-    const targetDate = new Date(dateStr)
-    targetDate.setHours(12, 0, 0, 0)
+    const { schoolId } = await requireSchoolAdmin()
 
-    const operations = records.map(record =>
-      prisma.teacherAttendance.upsert({
-        where: { teacherId_date: { teacherId: record.teacherId, date: targetDate } },
-        update: { status: record.status },
-        create: {
-          date: targetDate,
-          status: record.status,
-          teacherId: record.teacherId,
-          schoolId: schoolId,
-        }
-      })
+    const targetDate = parseLocalDay(dateStr, 'noon')
+    if (!targetDate) return { success: false as const, error: 'Invalid date.' }
+
+    if (!Array.isArray(records) || records.some((r) => !STATUSES.includes(r.status))) {
+      return { success: false as const, error: 'Invalid attendance status.' }
+    }
+
+    const teachers = await prisma.teacher.count({
+      where: { schoolId, id: { in: records.map((r) => r.teacherId) } },
+    })
+    if (teachers !== new Set(records.map((r) => r.teacherId)).size) {
+      return { success: false as const, error: 'Some teachers do not belong to your school.' }
+    }
+
+    await prisma.$transaction(
+      records.map((record) =>
+        prisma.teacherAttendance.upsert({
+          where: { teacherId_date: { teacherId: record.teacherId, date: targetDate } },
+          update: { status: record.status },
+          create: {
+            date: targetDate,
+            status: record.status,
+            teacherId: record.teacherId,
+            schoolId,
+          },
+        })
+      )
     )
 
-    await prisma.$transaction(operations)
     revalidatePath('/admin/attendance')
-    return { success: true }
+    revalidatePath('/admin/reports')
+    return { success: true as const }
   } catch (error) {
-    console.error('Error saving teacher attendance:', error)
-    return { success: false, error: 'Failed to save teacher attendance' }
+    return failure(error, 'Failed to save teacher attendance')
   }
 }

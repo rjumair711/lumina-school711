@@ -1,14 +1,18 @@
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import StudentDetailPage from '@/components/dashboard/student-detail-page'
+import { syncOverdueFees } from '@/lib/fees'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const { schoolId } = await requireSchoolAdminPage()
+  await syncOverdueFees(schoolId)
 
-  const studentData = await prisma.student.findUnique({
-    where: { id },
+  const studentData = await prisma.student.findFirst({
+    where: { id, schoolId },
     include: {
       user: true,
       class: {

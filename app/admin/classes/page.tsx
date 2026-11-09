@@ -1,10 +1,14 @@
 import ClassesPage from '@/components/dashboard/classes-page'
 import prisma from '@/lib/prisma'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
+  const { schoolId } = await requireSchoolAdminPage()
+
   const rawClasses = await prisma.class.findMany({
+    where: { schoolId },
     include: {
       classTeacher: { include: { user: true } },
       _count: { select: { students: true } }
@@ -13,6 +17,7 @@ export default async function Page() {
   })
 
   const dbTeachers = await prisma.teacher.findMany({
+    where: { schoolId },
     include: { user: true },
     orderBy: { createdAt: 'desc' }
   })

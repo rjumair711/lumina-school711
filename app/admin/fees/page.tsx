@@ -1,20 +1,22 @@
 import prisma from '@/lib/prisma'
 import FeesWorkspace from '@/components/dashboard/fees-workspace'
+import { syncOverdueFees } from '@/lib/fees'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminFeesPage() {
-  const school = await prisma.school.findFirst()
-  if (!school) return <div>School not configured</div>
+  const { schoolId } = await requireSchoolAdminPage()
+  await syncOverdueFees(schoolId)
 
   const classes = await prisma.class.findMany({
-    where: { schoolId: school.id },
+    where: { schoolId },
     select: { id: true, name: true, section: true },
     orderBy: [{ name: 'asc' }, { section: 'asc' }]
   })
 
   const students = await prisma.student.findMany({
-    where: { schoolId: school.id },
+    where: { schoolId },
     include: {
       user: true,
       class: true,

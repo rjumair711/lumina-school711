@@ -21,18 +21,23 @@ type StudentRow = {
     status: AttendanceStatus;
     summary: { present: number; absent: number; late: number; excused: number; }
 }
+// Local yyyy-MM-dd (toISOString would give yesterday's date before 05:30 IST).
+const localToday = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 type TeacherRow = { teacherId: string; displayId: string; name: string; status: AttendanceStatus }
 
 export default function AttendancePageClient({
-    classes, subjects, schoolId
+    classes, subjects
 }: {
     classes: { id: string; name: string; section: string }[];
     subjects: { id: string; name: string; code: string }[];
-    schoolId: string;
 }) {
     // NEW: Split single date into fromDate and toDate
-    const [fromDate, setFromDate] = useState<string>(new Date().toISOString().split('T')[0])
-    const [toDate, setToDate] = useState<string>(new Date().toISOString().split('T')[0])
+    const [fromDate, setFromDate] = useState<string>(() => localToday())
+    const [toDate, setToDate] = useState<string>(() => localToday())
 
     const [isPending, startTransition] = useTransition()
     const [isSaving, setIsSaving] = useState(false)
@@ -50,20 +55,20 @@ export default function AttendancePageClient({
         startTransition(async () => {
             const subjectFilter = selectedSubject === 'all' ? undefined : selectedSubject
             const result = await getAttendanceList(selectedClass, fromDate, toDate, subjectFilter)
-            if (result.success && result.data) setStudentRecords(result.data as StudentRow[])
+            if (result.success) setStudentRecords(result.data as StudentRow[])
             else toast.error(result.error)
         })
     }, [selectedClass, selectedSubject, fromDate, toDate])
 
     // Fetch Teachers (Using fromDate for simplicity on staff tab)
     useEffect(() => {
-        if (!fromDate || !schoolId) return
+        if (!fromDate) return
         startTransition(async () => {
-            const result = await getTeacherAttendance(schoolId, fromDate)
-            if (result.success && result.data) setTeacherRecords(result.data as TeacherRow[])
+            const result = await getTeacherAttendance(fromDate)
+            if (result.success) setTeacherRecords(result.data as TeacherRow[])
             else toast.error(result.error)
         })
-    }, [fromDate, schoolId])
+    }, [fromDate])
 
     const updateStudentStatus = (id: string, status: AttendanceStatus) => {
         setStudentRecords(prev => prev.map(r => r.studentId === id ? { ...r, status } : r))
@@ -91,7 +96,7 @@ export default function AttendancePageClient({
         if (teacherRecords.length === 0) return
         setIsSaving(true)
         const result = await saveTeacherAttendance(
-            schoolId, fromDate,
+            fromDate,
             teacherRecords.map(r => ({ teacherId: r.teacherId, status: r.status }))
         )
         setIsSaving(false)

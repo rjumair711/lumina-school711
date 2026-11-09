@@ -22,7 +22,7 @@ const navItems = [
   { label: 'Communication', href: '/admin/communication', icon: MessageCircle },
   { label: 'Reports', href: '/admin/reports', icon: Receipt },
   { label: 'AI Assistant', href: '/admin/ai-assistant', icon: Sparkles },
-  { label: 'Roles & Permissions', href: '/admin/roles-permissions', icon: ShieldCheck },
+  { label: 'Roles & Permissions', href: '/admin/roles-permission', icon: ShieldCheck },
   { label: 'Subject & Class', href: '/admin/subject-class', icon: BookOpen },
   { label: 'Tests & Exams', href: '/admin/tests-exams', icon: ClipboardList },
   { label: 'Study Materials', href: '/admin/study-materials', icon: FolderOpen },

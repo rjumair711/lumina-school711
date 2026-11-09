@@ -1,156 +1,143 @@
 'use client'
 
-import { useState } from 'react'
-import { Receipt, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  CalendarHeart,
+  FileSignature,
+  KeyRound,
+  Megaphone,
+  MessageSquareText,
+  ReceiptText,
+  Settings2,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Card } from '@/components/ui/card'
+import { getAiAssistantData, type AiAssistantData } from '@/app/actions/ai'
+import { InsightsChat } from './ai/insights-chat'
+import { EventPlannerTool, FeeLetterTool, NoticeTool, ReportCommentTool } from './ai/generators'
+import { AiSettingsPanel } from './ai/settings-panel'
 
-export default function AIAssistantPage() {
-  const [tool, setTool] = useState('School Insights')
-  const [question, setQuestion] = useState('')
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([])
-  const [subjects, setSubjects] = useState(['Subject 1'])
-  
-  const suggestions = ['How is overall student performance this term?', 'Which classes need attention?', 'Summarize fee collection this month?', 'Draft a parent update for attendance']
-  const tools = ['School Insights', 'Report Card Comments', 'Fee Reminder Letter', 'Event Planner', 'Notice Generator']
-  
-  const ask = (text: string) => { 
-    const trimmed = text.trim()
-    if (!trimmed) return
-    setMessages((current) => [...current, { role: 'user', text: trimmed }, { role: 'ai', text: 'Based on your live school data, I can help you review trends, identify students who need support, and prepare clear communications.' }])
-    setQuestion('') 
-  }
+type ToolId = 'insights' | 'report' | 'fees' | 'notice' | 'event' | 'settings'
+
+const TOOLS: { id: ToolId; label: string; hint: string; icon: typeof Sparkles }[] = [
+  { id: 'insights', label: 'School Insights', hint: 'Ask questions about your data', icon: MessageSquareText },
+  { id: 'report', label: 'Report Card Comments', hint: 'From real marks & attendance', icon: FileSignature },
+  { id: 'fees', label: 'Fee Reminder Letter', hint: 'For students with overdue fees', icon: ReceiptText },
+  { id: 'notice', label: 'Notice Generator', hint: 'Save drafts to the Notice Board', icon: Megaphone },
+  { id: 'event', label: 'Event Planner', hint: 'Timeline, budget, clash check', icon: CalendarHeart },
+  { id: 'settings', label: 'AI Settings', hint: 'Provider, model & API key', icon: Settings2 },
+]
+
+const REFRESH_MS = 60_000
+
+export default function AIAssistantPage({ initialData }: { initialData: AiAssistantData }) {
+  const router = useRouter()
+  const [data, setData] = useState(initialData)
+  const [tool, setTool] = useState<ToolId>(initialData.ai.configured ? 'insights' : 'settings')
+  const [noticePrefill, setNoticePrefill] = useState<{ topic: string; details: string } | null>(null)
+
+  // Keep pickers and stats fresh (new students, payments, etc.).
+  const reload = useCallback(async () => {
+    const res = await getAiAssistantData()
+    if (res.success) setData(res.data)
+    else if (res.unauthorized) router.replace('/')
+  }, [router])
+
+  useEffect(() => {
+    const tick = () => document.visibilityState === 'visible' && reload()
+    const id = window.setInterval(tick, REFRESH_MS)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [reload])
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-5 text-[#FF6B35]" />
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">AI Assistant</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-5 text-[#FF6B35]" />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">AI Assistant</h1>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">AI tools grounded in {data.schoolName}&apos;s live records.</p>
         </div>
-        <p className="mt-1 text-sm text-slate-500">AI-powered tools built for school administrators.</p>
+        <button
+          onClick={() => setTool('settings')}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold transition hover:border-[#FF6B35]',
+            data.ai.configured ? 'border-slate-200 bg-white text-slate-600' : 'border-amber-200 bg-amber-50 text-amber-800'
+          )}
+        >
+          <span className={cn('size-1.5 rounded-full', data.ai.configured ? 'bg-emerald-500' : 'bg-amber-500')} />
+          {data.ai.configured ? `${data.ai.provider} · ${data.ai.model}` : 'AI not connected'}
+        </button>
       </div>
 
-      <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-        <div className="grid min-h-[650px] lg:grid-cols-[28%_72%]">
-          <aside className="border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
-            <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">AI Tools</div>
-            <nav className="flex flex-col gap-2">
-              {tools.map((item) => (
-                <button 
-                  key={item} 
-                  onClick={() => setTool(item)} 
-                  className={cn('rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors', tool === item ? 'bg-orange-50 text-[#FF6B35]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800')}
+      {!data.ai.configured && tool !== 'settings' && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <KeyRound className="size-4 shrink-0" />
+          <span className="flex-1">{data.ai.problem}</span>
+          <button onClick={() => setTool('settings')} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-sm hover:bg-amber-100">
+            Open AI settings
+          </button>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="grid min-h-[680px] lg:grid-cols-[260px_1fr]">
+          <aside className="border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
+            <div className="mb-3 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">AI tools</div>
+            <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+              {TOOLS.map(({ id, label, hint, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setTool(id)}
+                  className={cn(
+                    'flex min-w-[190px] items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors lg:min-w-0',
+                    tool === id ? 'bg-orange-50' : 'hover:bg-slate-50'
+                  )}
                 >
-                  {item}
+                  <Icon className={cn('mt-0.5 size-4 shrink-0', tool === id ? 'text-[#FF6B35]' : 'text-slate-400')} />
+                  <span>
+                    <span className={cn('block text-sm font-semibold', tool === id ? 'text-[#d95324]' : 'text-slate-700')}>{label}</span>
+                    <span className="block text-[11px] text-slate-400">{hint}</span>
+                  </span>
                 </button>
               ))}
             </nav>
+
+            <div className="mt-6 hidden rounded-xl bg-slate-50 lg:block">
+              <div className="flex gap-2 p-3 text-[11px] leading-5 text-slate-500">
+                <ShieldAlert className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+                <p>
+                  Student names, attendance, marks and fee balances are sent to your chosen AI provider to generate answers. Phone numbers and emails are never sent.
+                  Always review AI drafts before sharing them.
+                </p>
+              </div>
+            </div>
           </aside>
 
-          <section className="flex min-h-0 flex-col">
-            {tool === 'School Insights' ? (
-              <>
-                <div className="border-b border-slate-200 px-5 py-5">
-                  <h2 className="text-lg font-bold text-slate-900">School Insights Chat</h2>
-                  <p className="mt-1 text-xs text-slate-500">AI powered by your live school data</p>
-                  <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                    {[['Students','162'],['Teachers','23'],['Classes','20'],['Collected','₹1,539,800'],['Pending','₹714,900']].map(([label,value]) => (
-                      <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
-                        <div className="text-[10px] text-slate-400">{label}</div>
-                        <div className="mt-1 text-xs font-bold text-slate-800">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex min-h-[360px] flex-1 flex-col gap-4 overflow-y-auto bg-white px-5 py-6">
-                  {messages.length === 0 ? (
-                    <div className="m-auto max-w-lg text-center">
-                      <Sparkles className="mx-auto size-8 text-[#FF6B35]" />
-                      <h3 className="mt-3 text-lg font-bold text-slate-900">Ask anything about your school</h3>
-                      <p className="mt-2 text-sm text-slate-500">Get quick, data-informed answers and administrative support.</p>
-                      <div className="mt-5 flex flex-wrap justify-center gap-2">
-                        {suggestions.map((item) => (
-                          <button 
-                            key={item} 
-                            onClick={() => ask(item)} 
-                            className="rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-[#d95324] hover:bg-orange-100"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    messages.map((message, index) => (
-                      <div 
-                        key={index} 
-                        className={cn('max-w-[80%] text-sm leading-6', message.role === 'user' ? 'self-end rounded-2xl rounded-br-md bg-[#FF6B35] px-4 py-3 text-white' : 'self-start text-slate-700')}
-                      >
-                        {message.text}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <form onSubmit={(event) => { event.preventDefault(); ask(question) }} className="flex gap-2 border-t border-slate-200 p-4">
-                  <input 
-                    value={question} 
-                    onChange={(event) => setQuestion(event.target.value)} 
-                    className="h-11 min-w-0 flex-1 rounded-xl border border-orange-300 px-4 text-sm outline-none focus:border-[#FF6B35]" 
-                    placeholder="Ask about your school..." 
-                  />
-                  <button className="rounded-xl bg-[#FF6B35] px-4 text-sm font-semibold text-white hover:bg-[#e95b29]">Ask</button>
-                </form>
-              </>
-            ) : tool === 'Report Card Comments' ? (
-              <div className="flex flex-col gap-5 p-5">
-                <div className="flex items-center gap-2">
-                  <Receipt className="size-5 text-[#FF6B35]" />
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Report Card Comments</h2>
-                    <p className="mt-1 text-xs text-slate-500">Generate thoughtful, personalized feedback.</p>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {[['ai-student','Student Name','Enter student name'],['ai-class','Class','Class 9-A'],['ai-term','Term / Exam','Mid Term'],['ai-attendance','Attendance %','92']].map(([id,label,placeholder]) => (
-                    <label key={id} htmlFor={id} className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">
-                      {label}
-                      <input id={id} placeholder={placeholder} className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-normal outline-none focus:border-[#FF6B35]" />
-                    </label>
-                  ))}
-                  <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700">Student Conduct
-                    <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal">
-                      <option>Excellent</option><option>Good</option><option>Needs Improvement</option>
-                    </select>
-                  </label>
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-800">Subject Marks *</span>
-                    <button type="button" onClick={() => setSubjects((current) => [...current, `Subject ${current.length + 1}`])} className="text-xs font-semibold text-[#FF6B35]">+ Add Subject</button>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {subjects.map((subject, index) => (
-                      <div key={`${subject}-${index}`} className="grid grid-cols-[1fr_130px] gap-2">
-                        <input defaultValue={subject} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-[#FF6B35]" />
-                        <input placeholder="Marks" className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-[#FF6B35]" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button className="w-full rounded-xl bg-[#FF6B35] py-3 text-sm font-semibold text-white hover:bg-[#e95b29]">Generate Comments</button>
-              </div>
-            ) : (
-              <div className="flex min-h-[500px] flex-col items-center justify-center p-8 text-center">
-                <Sparkles className="size-8 text-[#FF6B35]" />
-                <h2 className="mt-4 text-lg font-bold text-slate-900">{tool}</h2>
-                <p className="mt-2 max-w-md text-sm text-slate-500">Use AI to create polished school-ready content in a few clicks.</p>
-                <button className="mt-5 rounded-xl bg-[#FF6B35] px-5 py-3 text-sm font-semibold text-white">Start with {tool}</button>
-              </div>
+          <section className="min-h-0 min-w-0">
+            {tool === 'settings' && <AiSettingsPanel onSaved={reload} />}
+            {tool === 'insights' && <InsightsChat data={data} />}
+            {tool === 'report' && <ReportCommentTool data={data} />}
+            {tool === 'fees' && <FeeLetterTool data={data} />}
+            {tool === 'notice' && <NoticeTool prefill={noticePrefill} />}
+            {tool === 'event' && (
+              <EventPlannerTool
+                onMakeNotice={(topic, details) => {
+                  setNoticePrefill({ topic, details })
+                  setTool('notice')
+                }}
+              />
             )}
           </section>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

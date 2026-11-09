@@ -71,7 +71,7 @@ function handleError(error: unknown): Result {
 }
 
 function refreshNotices() {
-  revalidatePath('/admin/noticeboard')
+  revalidatePath('/admin/notice-board')
 }
 
 function parseDate(value: string | null) {

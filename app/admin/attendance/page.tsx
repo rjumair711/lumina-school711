@@ -1,20 +1,20 @@
 import AttendancePageClient from '@/components/dashboard/attendence-page'
 import prisma from '@/lib/prisma'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AttendancePage() {
-  const school = await prisma.school.findFirst()
-  if (!school) return <div>No school configured.</div>
+  const { schoolId } = await requireSchoolAdminPage()
 
   const classes = await prisma.class.findMany({
-    where: { schoolId: school.id },
+    where: { schoolId },
     select: { id: true, name: true, section: true },
     orderBy: [{ name: 'asc' }, { section: 'asc' }]
   })
 
   const subjects = await prisma.subject.findMany({
-    where: { schoolId: school.id },
+    where: { schoolId },
     select: { id: true, name: true, code: true },
     orderBy: { name: 'asc' }
   })
@@ -27,7 +27,7 @@ export default async function AttendancePage() {
           <p className="text-muted-foreground mt-1">Manage daily attendance for students and teaching staff.</p>
         </div>
       </div>
-      <AttendancePageClient classes={classes} subjects={subjects} schoolId={school.id} />
+      <AttendancePageClient classes={classes} subjects={subjects} />
     </div>
   )
 }

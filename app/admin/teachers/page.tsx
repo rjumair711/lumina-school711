@@ -1,19 +1,25 @@
 import TeachersPage from '@/components/dashboard/teacher-page'
 import prisma from '@/lib/prisma'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
+  const { schoolId } = await requireSchoolAdminPage()
+
   const rawTeachers = await prisma.teacher.findMany({
+    where: { schoolId },
     include: { user: true, classes: true, subjects: true },
     orderBy: { createdAt: 'desc' }
   })
   
   const dbClasses = await prisma.class.findMany({
+    where: { schoolId },
     orderBy: [{ name: 'asc' }, { section: 'asc' }]
   })
   
   const dbSubjects = await prisma.subject.findMany({
+    where: { schoolId },
     orderBy: { name: 'asc' }
   })
 

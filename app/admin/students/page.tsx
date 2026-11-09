@@ -1,8 +1,8 @@
 
 import StudentsPage from '@/components/dashboard/student-page'
 import prisma from '@/lib/prisma'
-import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
+import { syncOverdueFees } from '@/lib/fees'
+import { requireSchoolAdminPage } from '@/lib/school-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,20 +48,8 @@ function calculateFeeStatus(
 }
 
 export default async function Page() {
-  const session = await auth()
-
-  const user = session?.user as
-    | {
-        role?: string
-        schoolId?: string | null
-      }
-    | undefined
-
-  if (!user?.schoolId || user.role !== 'ADMIN') {
-    redirect('/')
-  }
-
-  const schoolId = user.schoolId
+  const { schoolId } = await requireSchoolAdminPage()
+  await syncOverdueFees(schoolId)
 
   const [dbClasses, rawStudents] = await Promise.all([
     prisma.class.findMany({
