@@ -4,7 +4,31 @@
 
 The platform enables multiple schools to create independent workspaces and manage their students, teachers, classes, subjects, homework, attendance, and academic operations through a centralized administration dashboard.
 
-Lumina School uses NextAuth v5 (Auth.js) for authentication, PostgreSQL hosted on Neon for persistent data storage, and Prisma ORM for database management.
+Lumina School uses NextAuth v5 (Auth.js) for authentication, **PostgreSQL hosted on Supabase** for persistent data storage, and Prisma ORM for database management.
+
+> **Internship Task 1 — School Fee Management System (MVP):** every core requirement and both bonus features are implemented. See [School Fee Management System](#school-fee-management-system-internship-task-1) for the feature map, the [Database Schema](#database-schema-fee-management) and [Setup](#database-setup-supabase).
+
+## School Fee Management System (Internship Task 1)
+
+| Requirement | Where | How |
+|---|---|---|
+| **1. Student Management**: Full Name, Roll Number, Class/Section, Monthly Fee Amount, Guardian Contact | `/admin/students` | Add / edit modals and the student list show all five fields. `Student.monthlyFee` stores the monthly fee; guardian name, phone and email are stored on the student. |
+| **2. Monthly Fee Voucher Generation** with `Pending` / `Paid` / `Overdue` status | `/admin/fees` → **Generate Vouchers** | Pick a month, a due day and a class (or all classes). One voucher is created per student from their monthly fee. A unique `(studentId, month)` index makes re-running safe: existing vouchers are skipped, never duplicated. Vouchers become `OVERDUE` automatically once the due date passes (`syncOverdueFees`). |
+| **3. Fee Collection & Payment Entry** | `/admin/fees` → **Collect Fee** (or **Collect** from Fee Records) | Records the amount, **Payment Date**, **Payment Method** (Cash / Bank Transfer / EasyPaisa / JazzCash / Cheque) and an optional transaction ID. An **auto-generated Receipt Number** (`RCP-<timestamp>-<random>`) is created per payment. The voucher becomes `PAID` when fully cleared. Balance checks run inside a DB transaction with an optimistic lock, so concurrent payments cannot overpay. |
+| **4. Dashboard Summary** | `/admin/fees` → **Dashboard** | **Total Expected (current month)**, **Total Collected (current month)**, **Pending Amount (current month)** and **Defaulters Count** (students with any overdue voucher). It also shows all-time collected/outstanding, a real 12-month collection chart and a class-wise collected vs pending chart. |
+| **5. Search & Filter** | `/admin/fees` → **Fee Records** | Filter vouchers by **Class/Section**, **Payment Status** (Paid / Unpaid, or Pending / Partial / Overdue) and **Month**, plus free-text search on name, student ID, roll no or voucher title. Live totals for the filtered set are shown. |
+| ⭐ **Bonus: Printable Challan / Receipt** | `/print/fee/[id]` | One click from Fee Records, the student ledger or the payment dialog opens a clean A4 print view and starts the print dialog (or *Save as PDF*). Unpaid vouchers print as a **3-part challan** (Bank / School / Student copy); paid vouchers print as a **receipt** with the full payment history. `?receipt=RCP-…` prints a single payment receipt. |
+| ⭐ **Bonus: Partial Payment Support** | Collect Fee | Any amount up to the balance can be paid. The voucher moves to `PARTIAL`, the **remaining balance** is shown live while typing, on the receipt and in every list, and each instalment gets its own receipt number. |
+
+### Fee Workflow
+
+1. Set each student's **Monthly Fee** under **Students**.
+2. **Fees → Generate Vouchers**: choose the month (e.g. November 2026), the due day and the class, then generate.
+3. **Fees → Fee Records**: filter, for example *Class 10-A + Unpaid*, then click **Collect** or **Challan**.
+4. Enter the amount (full or partial), method and date, then save. The receipt opens with a **Print Receipt** button.
+5. **Fees → Dashboard** shows the month's expected, collected and pending totals and the defaulters count.
+
+One-off charges such as admission or exam fees can still be applied to a whole class from **Generate Vouchers → One-off Fee**.
 
 ## Features
 
@@ -141,6 +165,57 @@ These are illustrative records.
 
 **Route:** `/admin/subject-class`
 
+### Database Schema (Fee Management)
+
+```
+School 1───* Class 1───* Student 1───* Fee 1───* FeePayment
+```
+
+**`Student`** (fee-relevant columns)
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `text` PK | cuid |
+| `studentId` | `text` unique | Auto code, e.g. `STU-2026-0007` |
+| `rollNo` | `text?` | Roll number |
+| `classId` | `text` FK → `Class` | Class + section (`Class.name`, `Class.section`) |
+| `monthlyFee` | `double precision` default `0` | Used by monthly voucher generation |
+| `parentName` / `parentPhone` / `parentEmail` | `text?` | Guardian contact |
+| `userId` | `text?` FK → `User` | Holds the student's full name (`User.name`) |
+| `schoolId` | `text` FK → `School` | Tenant isolation |
+
+**`Fee`** (a voucher)
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `text` PK | |
+| `title` | `text` | e.g. `Monthly Fee - November 2026` |
+| `month` | `text?` | Billing month `YYYY-MM`; `NULL` for one-off fees |
+| `totalAmount` | `double precision` | Voucher amount |
+| `paidAmount` | `double precision` default `0` | Sum of payments |
+| `dueDate` | `timestamp` | |
+| `status` | `FeeStatus` | `PENDING` · `PARTIAL` · `PAID` · `OVERDUE` |
+| `studentId` | `text` FK → `Student` | cascade delete |
+| `schoolId` | `text` FK → `School` | |
+
+Constraints: **unique** `(studentId, month)` allows one monthly voucher per student per month; **index** `(schoolId, month)`.
+
+**`FeePayment`** (one row per instalment)
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `text` PK | |
+| `receiptNo` | `text` unique | Auto-generated `RCP-<timestamp>-<hex>` |
+| `amount` | `double precision` | Amount of this instalment |
+| `paymentMode` | `text` | Cash / Bank Transfer / EasyPaisa / JazzCash / Cheque |
+| `referenceNo` | `text?` | Transaction / slip ID |
+| `paidAt` | `timestamp` | Payment date |
+| `feeId` | `text` FK → `Fee` | cascade delete |
+
+**Status rules** (`lib/fees.ts → feeStatusFor`): `paidAmount ≥ totalAmount` → `PAID`; otherwise past due → `OVERDUE`; otherwise `paidAmount > 0` → `PARTIAL`; else `PENDING`. "Unpaid" in filters means any status other than `PAID`.
+
+The full schema is in [`prisma/schema.prisma`](prisma/schema.prisma) and the SQL history is in [`prisma/migrations/`](prisma/migrations/). The fee voucher changes are in `20261114120000_monthly_fee_vouchers`.
+
 ### 9. Database Relationships
 
 The system uses Prisma ORM with PostgreSQL.
@@ -212,7 +287,7 @@ The newer Homework and Subject–Class server actions are designed to enforce sc
 | shadcn/ui-style components | UI component system |
 | NextAuth v5 | Authentication and sessions |
 | PostgreSQL | Relational database |
-| Neon | Hosted PostgreSQL |
+| Supabase | Hosted PostgreSQL |
 | Prisma 6.19.3 | ORM and migrations |
 | bcryptjs | Password hashing |
 | Sonner | Toast notifications |
@@ -301,13 +376,31 @@ lumina-school/
 
 The tree reflects the planned and supplied implementation structure, including the migration files reported in the development terminal.
 
-## Database Setup
+## Database Setup (Supabase)
 
-The application uses Neon PostgreSQL.
+The application uses **PostgreSQL on Supabase**, accessed through Prisma.
 
-Configure the environment variables required by the application's authentication and database setup.
+1. Create a project at [supabase.com](https://supabase.com/dashboard) and note the database password.
+2. In the project, open **Connect → ORMs → Prisma** and copy the two connection strings.
+3. Copy `.env.example` to `.env` and fill in the values:
 
-Never commit database credentials or authentication secrets to version control.
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Supabase **transaction pooler** URL (port `6543`, with `?pgbouncer=true&connection_limit=5&pool_timeout=20`), used at runtime |
+| `DIRECT_URL` | ✅ | Supabase **session pooler / direct** URL (port `5432`), used by `prisma migrate` |
+| `AUTH_SECRET` | ✅ | Auth.js secret (`npx auth secret`) |
+| `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` | optional | Default AI Assistant provider (can also be set in Settings) |
+| `AI_ENCRYPTION_KEY` | optional | Encrypts stored AI keys; falls back to `AUTH_SECRET` |
+
+4. Create the tables:
+
+```bash
+pnpm install
+pnpm prisma migrate deploy   # applies every migration in prisma/migrations
+pnpm prisma db seed          # optional demo school, admin and classes
+```
+
+Never commit `.env`, database credentials or authentication secrets to version control. Only `.env.example` is tracked.
 
 ### Prisma Commands
 
@@ -341,9 +434,7 @@ Apply reviewed migrations in a deployed environment:
 pnpm prisma migrate deploy
 ```
 
-**Important:** The existing Neon database was baselined because it originally had no Prisma Migrate history. Do not reset an existing database containing school records.
-
-The `class_subject_assignments` migration was reported as pending in the latest shared migration status. Its successful application has not yet been confirmed.
+**Important:** Do not run `prisma migrate reset` against a database containing school records.
 
 ## Installation & Development
 
@@ -399,6 +490,8 @@ pnpm build
 | `/admin/students/[id]` | Student profile |
 | `/admin/teachers/[id]` | Teacher profile |
 | `/admin/classes/[id]` | Class details |
+| `/admin/fees` | Fee dashboard, fee records, collection, voucher generation |
+| `/print/fee/[id]` | Printable fee challan / receipt (`?receipt=RCP-…` for one payment) |
 
 ## Current Development Status
 
@@ -451,11 +544,9 @@ Runtime and end-to-end verification of the new features remain necessary.
 - Academic performance analytics.
 
 ### Fees & Finance
-- Fee structures.
-- Payment management.
-- Receipts.
-- Outstanding balance reports.
-- Financial summaries.
+- Fee concessions / scholarships and late-fee fines.
+- SMS / WhatsApp reminders to guardians of defaulters.
+- Online payment gateway integration (EasyPaisa / JazzCash APIs).
 
 ### SaaS Administration
 - Super Admin dashboard.
@@ -480,4 +571,4 @@ Runtime and end-to-end verification of the new features remain necessary.
 
 **Lumina School — Multi-Tenant School Management Platform**
 
-Built with Next.js, TypeScript, PostgreSQL, Neon, Prisma, and Auth.js.
+Built with Next.js, TypeScript, PostgreSQL (Supabase), Prisma, and Auth.js.

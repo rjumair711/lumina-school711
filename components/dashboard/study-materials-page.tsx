@@ -289,7 +289,7 @@ export default function StudyMaterialsPage({ initialData }: { initialData: Mater
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ['Materials', String(s.total), `${s.published} published · ${s.total - s.published} draft`, FolderOpen, 'bg-orange-50 text-[#FF6B35]'],
-          ['Downloads', s.downloads.toLocaleString('en-IN'), 'All time', Download, 'bg-emerald-50 text-emerald-600'],
+          ['Downloads', s.downloads.toLocaleString('en-PK'), 'All time', Download, 'bg-emerald-50 text-emerald-600'],
           ['Added this month', String(s.thisMonth), 'New uploads and links', Plus, 'bg-sky-50 text-sky-600'],
           ['Storage used', formatBytes(s.storageBytes) || '0 KB', 'Uploaded files', HardDrive, 'bg-violet-50 text-violet-600'],
         ].map(([label, value, hint, Icon, tone]) => {

@@ -288,7 +288,7 @@ async function loadData(schoolId: string, adminName: string) {
   type Activity = { id: string; kind: 'student' | 'payment' | 'notice' | 'homework' | 'material'; title: string; detail: string; at: Date; href: string }
   const activity: Activity[] = [
     ...recentStudents.map((s) => ({ id: `s${s.id}`, kind: 'student' as const, title: 'Student enrolled', detail: `${s.user?.name ?? 'Student'} · Class ${s.class.name}-${s.class.section}`, at: s.createdAt, href: `/admin/students/${s.id}` })),
-    ...recentPayments.map((p) => ({ id: `p${p.id}`, kind: 'payment' as const, title: `₹${Math.round(p.amount).toLocaleString('en-IN')} fee received`, detail: `${p.fee.student.user?.name ?? 'Student'} · ${p.fee.title}`, at: p.paidAt, href: '/admin/fees' })),
+    ...recentPayments.map((p) => ({ id: `p${p.id}`, kind: 'payment' as const, title: `Rs. ${Math.round(p.amount).toLocaleString('en-PK')} fee received`, detail: `${p.fee.student.user?.name ?? 'Student'} · ${p.fee.title}`, at: p.paidAt, href: '/admin/fees' })),
     ...recentNotices.map((n) => ({ id: `n${n.id}`, kind: 'notice' as const, title: 'Notice published', detail: n.title, at: n.createdAt, href: '/admin/notice-board' })),
     ...recentHomework.map((h) => ({ id: `h${h.id}`, kind: 'homework' as const, title: 'Homework assigned', detail: `${h.title} · Class ${h.class.name}-${h.class.section}`, at: h.createdAt, href: '/admin/homework' })),
     ...recentMaterials.map((m) => ({ id: `m${m.id}`, kind: 'material' as const, title: 'Study material added', detail: `${m.title} · Class ${m.class.name}-${m.class.section}`, at: m.createdAt, href: '/admin/study-materials' })),
@@ -333,7 +333,7 @@ async function loadData(schoolId: string, adminName: string) {
     const missing = classesWithStudents - classesMarkedToday.length
     alerts.push({ tone: 'warning', text: `${missing} class${missing === 1 ? " hasn't" : "es haven't"} marked attendance today`, href: '/admin/attendance', action: 'Mark now' })
   }
-  if (overdueList.length) alerts.push({ tone: 'danger', text: `${overdueList.length} student${overdueList.length === 1 ? ' has' : 's have'} overdue fees (₹${Math.round(overdueTotal).toLocaleString('en-IN')})`, href: '/admin/fees', action: 'Review' })
+  if (overdueList.length) alerts.push({ tone: 'danger', text: `${overdueList.length} student${overdueList.length === 1 ? ' has' : 's have'} overdue fees (Rs. ${Math.round(overdueTotal).toLocaleString('en-PK')})`, href: '/admin/fees', action: 'Review' })
   if (lowAttendance) alerts.push({ tone: 'danger', text: `${lowAttendance} student${lowAttendance === 1 ? ' is' : 's are'} below 75% attendance this month`, href: '/admin/reports?tab=attendance', action: 'See list' })
   if (marksPending) alerts.push({ tone: 'warning', text: `${marksPending} test${marksPending === 1 ? ' is' : 's are'} waiting for marks`, href: '/admin/tests-exams', action: 'Enter marks' })
   if (unstaffed) alerts.push({ tone: 'info', text: `${unstaffed} class subject${unstaffed === 1 ? ' has' : 's have'} no teacher`, href: '/admin/subject-class', action: 'Assign' })

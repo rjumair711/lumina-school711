@@ -11,7 +11,7 @@ type Message = { role: 'user' | 'assistant'; content: string; failed?: boolean }
 
 const STORAGE_KEY = 'lumina.ai.insights.v1'
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
+const inr = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-PK')}`
 
 export function CopyButton({ text, className }: { text: string; className?: string }) {
   const [copied, setCopied] = useState(false)
@@ -98,8 +98,8 @@ export function InsightsChat({ data }: { data: AiAssistantData }) {
   ].slice(0, 6)
 
   const stats = [
-    ['Students', data.stats.students.toLocaleString('en-IN')],
-    ['Teachers', data.stats.teachers.toLocaleString('en-IN')],
+    ['Students', data.stats.students.toLocaleString('en-PK')],
+    ['Teachers', data.stats.teachers.toLocaleString('en-PK')],
     ['Classes', String(data.stats.classes)],
     ['Attendance', data.stats.attendanceRate === null ? '—' : `${data.stats.attendanceRate}%`],
     ['Collected', inr(data.stats.collected)],

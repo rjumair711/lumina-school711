@@ -48,7 +48,7 @@ export async function buildSchoolContext(schoolId: string) {
     school: school?.name ?? 'School',
     today: format(today, 'EEEE, dd MMMM yyyy'),
     period: `${r.range.label} (this month so far)`,
-    currency: 'INR (₹)',
+    currency: 'PKR (Rs.)',
     overview: r.overview,
     attentionPoints: r.insights.map((i) => `${i.title}: ${i.detail}`),
     attendance: {

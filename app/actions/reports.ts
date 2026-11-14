@@ -148,7 +148,7 @@ function buildBuckets(from: Date, to: Date, g: Granularity) {
 }
 
 function formatINR(n: number) {
-  return `₹${Math.round(n).toLocaleString('en-IN')}`
+  return `Rs. ${Math.round(n).toLocaleString('en-PK')}`
 }
 
 // ------------------------------------------------------------------

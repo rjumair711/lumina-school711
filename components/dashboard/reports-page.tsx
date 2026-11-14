@@ -104,13 +104,13 @@ function detectPreset(from: string, to: string): Preset {
   return 'custom'
 }
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
+const inr = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-PK')}`
 
-const compactNumber = new Intl.NumberFormat('en-IN', {
+const compactNumber = new Intl.NumberFormat('en-PK', {
   notation: 'compact',
   maximumFractionDigits: 1,
 })
-const compactInr = (n: number) => `₹${compactNumber.format(n)}`
+const compactInr = (n: number) => `Rs. ${compactNumber.format(n)}`
 
 const pct = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : `${n}%`
@@ -148,7 +148,7 @@ function downloadCsv(filename: string, sections: CsvSection[]) {
     section.rows.forEach((row) => lines.push(row.map(escape).join(',')))
   })
 
-  // BOM so Excel opens ₹ and other UTF-8 characters correctly.
+  // BOM so Excel opens Rs. and other UTF-8 characters correctly.
   const blob = new Blob(['﻿' + lines.join('\r\n')], {
     type: 'text/csv;charset=utf-8',
   })
@@ -478,14 +478,14 @@ function OverviewTab({ data }: { data: ReportData }) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           label="Students enrolled"
-          value={o.students.toLocaleString('en-IN')}
+          value={o.students.toLocaleString('en-PK')}
           hint={`Across ${o.classes} class${o.classes === 1 ? '' : 'es'}`}
           icon={Users}
           accent="bg-orange-50 text-[#FF6B35]"
         />
         <Kpi
           label={data.filters.classId ? 'Teachers assigned' : 'Teachers'}
-          value={o.teachers.toLocaleString('en-IN')}
+          value={o.teachers.toLocaleString('en-PK')}
           hint={`Staff attendance ${pct(data.attendance.staff.rate)}`}
           icon={GraduationCap}
           accent="bg-sky-50 text-sky-600"
@@ -493,7 +493,7 @@ function OverviewTab({ data }: { data: ReportData }) {
         <Kpi
           label="Student attendance"
           value={pct(o.attendanceRate)}
-          hint={`${data.attendance.totals.total.toLocaleString('en-IN')} records in period`}
+          hint={`${data.attendance.totals.total.toLocaleString('en-PK')} records in period`}
           icon={CalendarCheck}
           accent="bg-blue-50 text-blue-600"
           valueClass={rateTone(o.attendanceRate).text}
@@ -626,15 +626,15 @@ function AttendanceTab({ data }: { data: ReportData }) {
         />
         <Kpi
           label="Present / late"
-          value={(t.present + t.late).toLocaleString('en-IN')}
-          hint={`${t.late.toLocaleString('en-IN')} late arrivals`}
+          value={(t.present + t.late).toLocaleString('en-PK')}
+          hint={`${t.late.toLocaleString('en-PK')} late arrivals`}
           icon={CheckCircle2}
           accent="bg-emerald-50 text-emerald-600"
         />
         <Kpi
           label="Absences"
-          value={t.absent.toLocaleString('en-IN')}
-          hint={`${t.excused.toLocaleString('en-IN')} excused`}
+          value={t.absent.toLocaleString('en-PK')}
+          hint={`${t.excused.toLocaleString('en-PK')} excused`}
           icon={UserX}
           accent="bg-rose-50 text-rose-600"
         />
@@ -667,7 +667,7 @@ function AttendanceTab({ data }: { data: ReportData }) {
                 <div key={s.label} className="flex items-center gap-2 text-xs text-slate-500">
                   <span className="size-2.5 rounded-sm" style={{ background: s.color }} />
                   {s.label}
-                  <b className="text-slate-800">{s.value.toLocaleString('en-IN')}</b>
+                  <b className="text-slate-800">{s.value.toLocaleString('en-PK')}</b>
                   <span>({Math.round((s.value / t.total) * 100)}%)</span>
                 </div>
               ))}
@@ -1031,7 +1031,7 @@ function AcademicsTab({ data }: { data: ReportData }) {
         />
         <Kpi
           label="Marks entered"
-          value={perf.marksEntered.toLocaleString('en-IN')}
+          value={perf.marksEntered.toLocaleString('en-PK')}
           hint="Student scores recorded"
           icon={ClipboardList}
           accent="bg-sky-50 text-sky-600"

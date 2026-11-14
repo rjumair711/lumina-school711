@@ -110,6 +110,7 @@ export default async function Page() {
       parentPhone: student.parentPhone || '',
       parentEmail: student.parentEmail || '',
       address: student.address || '',
+      monthlyFee: student.monthlyFee,
 
       // Preserve existing attendance behavior.
       attendanceValue: 100,
