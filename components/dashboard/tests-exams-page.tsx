@@ -253,7 +253,7 @@ export default function TestsExamsPage({ initialData }: { initialData: Assessmen
       pending: pendingTests.length + pendingPapers.length,
       completed: data.tests.filter((t) => t.status === 'Completed').length + data.exams.filter((e) => e.status === 'Completed').length,
       average: appeared ? `${Math.round((weighted / appeared) * 10) / 10}%` : '—',
-      averageHint: appeared ? `Across ${appeared.toLocaleString('en-IN')} marks entered` : 'No marks entered yet',
+      averageHint: appeared ? `Across ${appeared.toLocaleString('en-PK')} marks entered` : 'No marks entered yet',
     }
   }, [data, today, soon])
 

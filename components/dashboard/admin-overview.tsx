@@ -30,8 +30,8 @@ import { getDashboardData, type DashboardData } from '@/app/actions/dashboard'
 
 const REFRESH_MS = 60_000
 const BRAND = '#FF6B35'
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
-const compact = new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 })
+const inr = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-PK')}`
+const compact = new Intl.NumberFormat('en-PK', { notation: 'compact', maximumFractionDigits: 1 })
 
 function rateTone(rate: number | null) {
   if (rate === null) return { text: 'text-slate-400', fill: '#cbd5e1' }
@@ -118,7 +118,7 @@ function SchoolCalendar({ data }: { data: DashboardData }) {
         <button aria-label="Previous month" disabled={month <= minMonth} onClick={() => shift(-1)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
           <ChevronLeft className="size-4" />
         </button>
-        <span className="text-xs font-bold text-slate-700">{month.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
+        <span className="text-xs font-bold text-slate-700">{month.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })}</span>
         <button aria-label="Next month" disabled={month >= maxMonth} onClick={() => shift(1)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
           <ChevronRight className="size-4" />
         </button>
@@ -155,7 +155,7 @@ function SchoolCalendar({ data }: { data: DashboardData }) {
       </div>
       <div className="mt-3 border-t border-slate-100 pt-3">
         <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          {new Date(`${selected}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+          {new Date(`${selected}T00:00:00`).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'short' })}
         </div>
         {dayEvents.length ? (
           <ul className="flex max-h-32 flex-col gap-1.5 overflow-y-auto text-[11px]">
@@ -225,7 +225,7 @@ export default function DashboardOverview({ initialData }: { initialData: Dashbo
   const kpis = [
     {
       label: 'Students',
-      value: s.students.toLocaleString('en-IN'),
+      value: s.students.toLocaleString('en-PK'),
       hint: s.newStudents ? `+${s.newStudents} this month` : `${s.classes} classes`,
       icon: Users,
       tone: 'bg-orange-50 text-[#FF6B35]',
@@ -233,7 +233,7 @@ export default function DashboardOverview({ initialData }: { initialData: Dashbo
     },
     {
       label: 'Teachers',
-      value: s.teachers.toLocaleString('en-IN'),
+      value: s.teachers.toLocaleString('en-PK'),
       hint: s.staffToday === null ? 'Staff attendance not marked' : `${s.staffToday}% present today`,
       icon: GraduationCap,
       tone: 'bg-sky-50 text-sky-600',
@@ -351,7 +351,7 @@ export default function DashboardOverview({ initialData }: { initialData: Dashbo
               <BarChart data={data.feeSeries} margin={{ left: 0, right: 6, top: 8 }}>
                 <CartesianGrid vertical={false} stroke="#eef1f6" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                <YAxis tickFormatter={(v) => `₹${compact.format(Number(v))}`} tickLine={false} axisLine={false} width={52} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis tickFormatter={(v) => `Rs. ${compact.format(Number(v))}`} tickLine={false} axisLine={false} width={52} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                 <Tooltip cursor={{ fill: '#f1f5f9' }} content={<Tip rows={(p) => [['Collected', inr(p.collected as number)], ['Fees due', inr(p.due as number)]]} />} />
                 <Bar dataKey="collected" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={26} />
                 <Bar dataKey="due" fill={BRAND} fillOpacity={0.35} radius={[4, 4, 0, 0]} maxBarSize={26} />

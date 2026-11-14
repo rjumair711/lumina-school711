@@ -25,7 +25,7 @@ import { useAiStream } from './use-ai-stream'
 
 const TONES = ['Warm', 'Formal', 'Encouraging', 'Firm but polite', 'Friendly', 'Neutral']
 const AUDIENCES = ['Everyone', 'Parents', 'Students', 'Teachers', 'Staff']
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
+const inr = (n: number) => `Rs. ${Math.round(n).toLocaleString('en-PK')}`
 
 function ToolHeader({ icon: Icon, title, text }: { icon: typeof Sparkles; title: string; text: string }) {
   return (
@@ -392,7 +392,7 @@ export function EventPlannerTool({ onMakeNotice }: { onMakeNotice: (topic: strin
             <label className={labelClass}>Date
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} />
             </label>
-            <label className={labelClass}>Budget (₹)
+            <label className={labelClass}>Budget (Rs.)
               <input inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^\d]/g, ''))} placeholder="Optional" className={inputClass} />
             </label>
           </div>

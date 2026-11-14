@@ -6,6 +6,7 @@ import { ChevronDown, Eye, Pencil, Search, Trash2, UserRoundPlus, X } from 'luci
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { addStudentAction, updateStudentAction, deleteStudentAction } from '@/app/actions/admin'
+import { formatMoney } from '@/lib/fee-utils'
 
 type Student = {
   id: string
@@ -20,6 +21,7 @@ type Student = {
   parentPhone: string
   parentEmail: string
   address: string
+  monthlyFee: number
   attendanceValue: number
   feeStatus: 'Paid' | 'Partial' | 'Pending' | 'Not Assigned'
 }
@@ -174,12 +176,14 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
       </div>
       <Card>
         <CardContent className="overflow-x-auto p-0">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[960px] text-left text-sm">
             <thead>
               <tr className="border-b bg-slate-50 text-xs text-slate-500">
                 <th className="px-5 py-3">Student</th>
                 <th className="px-5 py-3">Class</th>
                 <th className="px-5 py-3">Roll No.</th>
+                <th className="px-5 py-3">Monthly Fee</th>
+                <th className="px-5 py-3">Guardian Contact</th>
                 <th className="px-5 py-3">Attendance</th>
                 <th className="px-5 py-3">Fee Status</th>
                 <th className="px-5 py-3 text-right">Actions</th>
@@ -203,6 +207,11 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
                   </td>
                   <td className="px-5 py-4">{student.cls}</td>
                   <td className="px-5 py-4">{student.roll}</td>
+                  <td className="px-5 py-4 font-medium">{formatMoney(student.monthlyFee)}</td>
+                  <td className="px-5 py-4">
+                    <div className="text-slate-700">{student.parentPhone || '-'}</div>
+                    {student.parentName && <div className="text-xs text-slate-400">{student.parentName}</div>}
+                  </td>
                   <td className="px-5 py-4">{student.attendanceValue}%</td>
                   <td className="px-5 py-4">
 
@@ -251,7 +260,7 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
               ))}
               {filteredStudents.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
                     No students found. Add one above!
                   </td>
                 </tr>
@@ -304,6 +313,18 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
                     name="rollNumber"
                     required
                     placeholder="e.g. 12"
+                    className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-orange-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Monthly Fee (Rs.)</label>
+                  <input
+                    name="monthlyFee"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    placeholder="e.g. 5000"
                     className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-orange-400"
                   />
                 </div>
@@ -411,6 +432,18 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
                     name="rollNumber"
                     defaultValue={editingStudent.roll}
                     required
+                    className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-orange-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Monthly Fee (Rs.)</label>
+                  <input
+                    name="monthlyFee"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    defaultValue={editingStudent.monthlyFee}
                     className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-orange-400"
                   />
                 </div>

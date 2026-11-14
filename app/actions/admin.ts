@@ -12,6 +12,14 @@ const text = (formData: FormData, key: string) =>
 
 const optional = (value: string) => (value ? value : null)
 
+// Monthly fee in rupees; blank means 0. Returns null when invalid.
+function monthlyFeeFrom(formData: FormData): number | null {
+  const raw = text(formData, 'monthlyFee')
+  if (!raw) return 0
+  const value = Math.round(Number(raw) * 100) / 100
+  return Number.isFinite(value) && value >= 0 && value <= 10_000_000 ? value : null
+}
+
 function fail(error: unknown, fallback: string): Result {
   const access = accessErrorMessage(error)
   if (access) return { success: false, error: access }
@@ -84,6 +92,8 @@ export async function addStudentAction(formData: FormData): Promise<Result> {
     const classId = text(formData, 'classId')
 
     if (!fullName) return { success: false, error: 'Student name is required.' }
+    const monthlyFee = monthlyFeeFrom(formData)
+    if (monthlyFee === null) return { success: false, error: 'Enter a valid monthly fee.' }
     if (!(await classInSchool(classId, schoolId))) {
       return { success: false, error: 'Select a class from your school.' }
     }
@@ -110,6 +120,7 @@ export async function addStudentAction(formData: FormData): Promise<Result> {
             parentName: optional(text(formData, 'parentName')),
             parentPhone: optional(text(formData, 'parentPhone')),
             parentEmail: optional(text(formData, 'parentEmail')),
+            monthlyFee,
             schoolId,
             classId,
             userId: user.id,
@@ -133,6 +144,8 @@ export async function updateStudentAction(id: string, formData: FormData): Promi
     const classId = text(formData, 'classId')
 
     if (!fullName) return { success: false, error: 'Student name is required.' }
+    const monthlyFee = monthlyFeeFrom(formData)
+    if (monthlyFee === null) return { success: false, error: 'Enter a valid monthly fee.' }
 
     const student = await prisma.student.findFirst({
       where: { id, schoolId },
@@ -160,6 +173,7 @@ export async function updateStudentAction(id: string, formData: FormData): Promi
           parentName: optional(text(formData, 'parentName')),
           parentPhone: optional(text(formData, 'parentPhone')),
           parentEmail: optional(text(formData, 'parentEmail')),
+          monthlyFee,
           classId,
         },
       })
@@ -167,6 +181,7 @@ export async function updateStudentAction(id: string, formData: FormData): Promi
 
     revalidatePath('/admin/students')
     revalidatePath(`/admin/students/${id}`)
+    revalidatePath('/admin/fees')
     return { success: true }
   } catch (error) {
     return fail(error, 'Failed to update student in database.')

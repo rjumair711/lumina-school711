@@ -275,7 +275,7 @@ export default function StudentDetailPage({ student }: StudentDetailProps) {
                       <div className="mt-0.5 text-slate-400">Due: {fee.dueDate}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-slate-900">₹{fee.paidAmount} / ₹{fee.totalAmount}</div>
+                      <div className="font-bold text-slate-900">Rs. {fee.paidAmount} / Rs. {fee.totalAmount}</div>
                       <Badge className="mt-1 bg-amber-50 text-amber-700">{fee.status}</Badge>
                     </div>
                   </div>

@@ -4,7 +4,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
+  // Supabase: DATABASE_URL = pooled (port 6543), DIRECT_URL = session/direct (port 5432) for migrations
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -107,8 +109,8 @@ model User {
 
   authoredNotices   Notice[]        @relation("NoticeAuthors")
   permissionChanges PermissionLog[] @relation("PermissionChangedBy")
-  accounts        Account[]
-  sessions        Session[]
+  accounts          Account[]
+  sessions          Session[]
 }
 
 model Account {
@@ -191,6 +193,9 @@ model Student {
   parentPhone String?
   parentEmail String?
 
+  // Fee charged every month; used when generating monthly vouchers
+  monthlyFee Float @default(0)
+
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -217,7 +222,7 @@ model Teacher {
   experience    String?
 
   // Keys from lib/permissions.ts, e.g. "attendance.mark"
-  permissions          String[]  @default([])
+  permissions          String[]        @default([])
   permissionsUpdatedAt DateTime?
   permissionLogs       PermissionLog[]
 
@@ -314,6 +319,8 @@ model Fee {
   paidAmount  Float     @default(0)
   dueDate     DateTime
   status      FeeStatus @default(PENDING)
+  // Billing month for monthly vouchers, e.g. "2026-11". Null for one-off fees.
+  month       String?
 
   studentId String
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -325,6 +332,10 @@ model Fee {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // One monthly voucher per student per month (NULLs are not compared)
+  @@unique([studentId, month])
+  @@index([schoolId, month])
 }
 
 model FeePayment {
