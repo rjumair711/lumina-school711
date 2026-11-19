@@ -4,7 +4,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
-  title: 'EduFlow – School Admin',
+  title: 'Lumina School – Fee & School Management',
   description: 'A modern school management dashboard for administrators.',
   generator: 'v0.app',
   icons: {

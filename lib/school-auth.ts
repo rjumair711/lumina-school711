@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { Role } from '@prisma/client'
 import { auth } from '@/auth'
@@ -14,7 +15,8 @@ export type SchoolAdmin = {
   schoolId: string
 }
 
-export async function requireSchoolAdmin(): Promise<SchoolAdmin> {
+// Memoised per request, so the admin layout and the page share one lookup.
+export const requireSchoolAdmin = cache(async function requireSchoolAdmin(): Promise<SchoolAdmin> {
   const session = await auth()
   const email = session?.user?.email
 
@@ -34,7 +36,7 @@ export async function requireSchoolAdmin(): Promise<SchoolAdmin> {
     name: user.name || 'School Administrator',
     schoolId: user.schoolId,
   }
-}
+})
 
 // For server pages: send unauthenticated visitors to the login screen.
 export async function requireSchoolAdminPage(): Promise<SchoolAdmin> {

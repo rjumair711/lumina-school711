@@ -8,6 +8,19 @@ Lumina School uses NextAuth v5 (Auth.js) for authentication, **PostgreSQL hosted
 
 > **Internship Task 1 — School Fee Management System (MVP):** every core requirement and both bonus features are implemented. See [School Fee Management System](#school-fee-management-system-internship-task-1) for the feature map, the [Database Schema](#database-schema-fee-management) and [Setup](#database-setup-supabase).
 
+### 🔗 Live Demo
+
+**https://lumina-school711-ktn4.vercel.app/**
+
+| | |
+|---|---|
+| **Email** | `demo@luminaschool.app` |
+| **Password** | `Demo@12345` |
+
+On the login page, click **Use demo admin account** to fill these in. The demo school already has 3 classes, 9 students and three months of vouchers in every status (Paid, Partial, Pending, Overdue). Open **Fees** in the sidebar to try the full workflow. You can also register your own school from **Register School**; it starts empty.
+
+**Quick tour:** Fees → *Dashboard* (current-month metrics) → *Fee Records* (filter by class / Paid / Unpaid → **Collect**) → record a partial payment → **Print Receipt** → *Generate Vouchers* for next month.
+
 ## School Fee Management System (Internship Task 1)
 
 | Requirement | Where | How |
@@ -397,8 +410,10 @@ The application uses **PostgreSQL on Supabase**, accessed through Prisma.
 ```bash
 pnpm install
 pnpm prisma migrate deploy   # applies every migration in prisma/migrations
-pnpm prisma db seed          # optional demo school, admin and classes
+pnpm prisma db seed          # optional: demo school with students, vouchers and payments
 ```
+
+The seed is safe to re-run (existing rows are reused). It creates the login `demo@luminaschool.app` / `Demo@12345`; override with `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD`.
 
 Never commit `.env`, database credentials or authentication secrets to version control. Only `.env.example` is tracked.
 
@@ -510,16 +525,12 @@ pnpm build
 - Teacher Reassignment
 - Academic Assignment Summary
 
-**Verification status:**
+**Fee Management (Task 1):** student fee details, monthly vouchers, payment collection with receipts, partial payments, printable challans/receipts, dashboard metrics and filters.
 
-The shared development logs confirm:
-- Prisma schema validation passed.
-- Prisma Client generation passed.
-- TypeScript compilation check passed.
-- Prisma baselining was performed and two migrations were recognized.
-- The class-subject assignment migration was still pending in the most recent migration status.
-
-Runtime and end-to-end verification of the new features remain necessary.
+**Verification:**
+- All migrations in `prisma/migrations` are applied on Supabase.
+- `pnpm exec tsc --noEmit` passes.
+- The fee flows were tested end-to-end in a browser: login, voucher generation, Paid/Unpaid filters, partial payment with receipt number, printing, and saving settings.
 
 ## Future Enhancements
 

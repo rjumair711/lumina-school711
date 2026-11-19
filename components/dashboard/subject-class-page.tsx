@@ -295,7 +295,7 @@ export default function SubjectClassPage({ initialData }: { initialData: Subject
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Subjects', data.subjects.length, `${data.assignments.length} class assignments`, BookOpen, 'bg-orange-50 text-[#FF6B35]', null],
+          ['Subjects', data.subjects.length, `${data.assignments.length} class assignments`, BookOpen, 'bg-orange-50 text-[#FF6B35]', 'subjects'],
           ['Without a teacher', kpis.noTeacher, 'Class subjects to staff', UserX, kpis.noTeacher ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600', 'coverage'],
           ['Classes with no subjects', kpis.emptyClasses, `of ${data.classes.length} classes`, LayoutGrid, kpis.emptyClasses ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600', 'coverage'],
           ['Teachers not assigned', kpis.idleTeachers, `of ${data.teachers.length} teachers`, GraduationCap, kpis.idleTeachers ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600', 'teachers'],

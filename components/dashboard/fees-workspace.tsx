@@ -83,7 +83,7 @@ function printUrl(feeId: string, receiptNo?: string) {
   return `/print/fee/${feeId}?print=1${receiptNo ? `&receipt=${encodeURIComponent(receiptNo)}` : ''}`
 }
 
-function ReceiptDialog({ receipt, onClose }: { receipt: ReceiptInfo; onClose: () => void }) {
+function ReceiptDialog({ receipt, schoolName, onClose }: { receipt: ReceiptInfo; schoolName: string; onClose: () => void }) {
   const { student, fee } = receipt
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/40 p-4">
@@ -94,8 +94,8 @@ function ReceiptDialog({ receipt, onClose }: { receipt: ReceiptInfo; onClose: ()
         </div>
         <div className="rounded-xl border border-slate-200 p-6">
           <div className="text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-[#FF6B35] font-bold text-white">E</div>
-            <div className="mt-2 font-bold text-[#FF6B35]">EduFlow School</div>
+            <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-[#FF6B35] font-bold text-white">{schoolName.charAt(0).toUpperCase() || 'S'}</div>
+            <div className="mt-2 font-bold text-[#FF6B35]">{schoolName}</div>
             <div className="text-xs text-slate-500">Fee Payment Receipt</div>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
@@ -126,7 +126,7 @@ function ReceiptDialog({ receipt, onClose }: { receipt: ReceiptInfo; onClose: ()
   )
 }
 
-export default function FeesWorkspace({ classes, students, metrics, charts }: { classes: ClassItem[], students: StudentData[], metrics: Metrics, charts: Charts }) {
+export default function FeesWorkspace({ schoolName, classes, students, metrics, charts }: { schoolName: string, classes: ClassItem[], students: StudentData[], metrics: Metrics, charts: Charts }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>('Dashboard')
 
   // Collect Fee State (ids, so the view refreshes with server data after a payment)
@@ -679,7 +679,7 @@ export default function FeesWorkspace({ classes, students, metrics, charts }: { 
       )}
 
       {receiptData && (
-        <ReceiptDialog receipt={receiptData} onClose={() => setReceiptData(null)} />
+        <ReceiptDialog receipt={receiptData} schoolName={schoolName} onClose={() => setReceiptData(null)} />
       )}
     </div>
   )

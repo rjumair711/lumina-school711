@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronDown, Eye, Pencil, Search, Trash2, UserRoundPlus, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,12 +35,15 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
   const [classOpen, setClassOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const searchParams = useSearchParams()
+  const urlQuery = searchParams.get('q') ?? ''
+  const [search, setSearch] = useState(urlQuery)
+  useEffect(() => setSearch(urlQuery), [urlQuery])
   const [selectedClass, setSelectedClass] = useState('All Classes')
   const [selectedStatus, setSelectedStatus] = useState('All Status')
 
   const filterClasses = ['All Classes', ...dbClasses.map((c) => `Class ${c.name}-${c.section}`)]
-  const statuses = ['All Status', 'Paid', 'Pending']
+  const statuses = ['All Status', 'Paid', 'Partial', 'Pending', 'Not Assigned']
 
   const handleAddSubmit = async (formData: FormData) => {
     const res = await addStudentAction(formData)
@@ -77,7 +81,9 @@ export default function StudentsPage({ students, dbClasses }: { students: Studen
 
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm) ||
-      student.roll.toLowerCase().includes(searchTerm)
+      student.roll.toLowerCase().includes(searchTerm) ||
+      student.email.toLowerCase().includes(searchTerm) ||
+      student.parentName.toLowerCase().includes(searchTerm)
 
     const matchesClass =
       selectedClass === 'All Classes' ||

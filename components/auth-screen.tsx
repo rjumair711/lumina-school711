@@ -4,26 +4,14 @@ import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { BookOpen, Eye, EyeOff, GraduationCap, Heart, LockKeyhole, Mail, ShieldCheck, UserRound } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Eye, EyeOff, GraduationCap, LockKeyhole, Mail, Sparkles } from 'lucide-react'
 import { registerSchoolAdmin } from '@/lib/actions/auth'
 
-type Role = 'Admin' | 'Teacher' | 'Student' | 'Parent'
 type AuthMode = 'login' | 'register'
 
-const roles: { name: Role; description: string; icon: typeof ShieldCheck }[] = [
-  { name: 'Admin', description: 'School administrator', icon: ShieldCheck },
-  { name: 'Teacher', description: 'Manage your classes', icon: BookOpen },
-  { name: 'Student', description: 'View your learning', icon: UserRound },
-  { name: 'Parent', description: 'Stay connected', icon: Heart },
-]
 
-const demoCredentials: Record<Role, { email: string; password: string }> = {
-  Admin: { email: 'admin@school.com', password: 'adminpassword123' },
-  Teacher: { email: 'teacher@school.com', password: 'teacherpassword123' },
-  Student: { email: 'student@school.com', password: 'studentpassword123' },
-  Parent: { email: 'parent@school.com', password: 'parentpassword123' },
-}
+// Demo admin created by `pnpm prisma db seed` (see README).
+const DEMO_ADMIN = { email: 'demo@luminaschool.app', password: 'Demo@12345' }
 
 function HeroPanel() {
   return (
@@ -32,15 +20,12 @@ function HeroPanel() {
       <div className="absolute -bottom-36 -left-20 size-96 rounded-full border-[46px] border-white/10" />
       <div className="relative flex items-center gap-3">
         <div className="flex size-11 items-center justify-center rounded-full border border-white/30 bg-white/10"><GraduationCap className="size-6" /></div>
-        <div><div className="text-xl font-bold tracking-tight">EduFlow</div><div className="text-xs text-white/70">School Management System</div></div>
+        <div><div className="text-xl font-bold tracking-tight">Lumina School</div><div className="text-xs text-white/70">School Management System</div></div>
       </div>
       <div className="relative my-auto max-w-md py-16">
         <div className="mb-5 h-1 w-12 rounded-full bg-white/70" />
         <h1 className="text-5xl font-bold leading-[1.08] tracking-tight">Manage your school with confidence</h1>
         <p className="mt-6 max-w-sm text-base leading-7 text-white/80">A complete platform for administrators, teachers, students, and parents.</p>
-      </div>
-      <div className="relative grid grid-cols-3 gap-3">
-        {[['2,847', 'Students'], ['184', 'Teachers'], ['12', 'Schools']].map(([value, label]) => <div key={label} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm"><div className="text-lg font-bold">{value}</div><div className="mt-0.5 text-[11px] text-white/70">{label}</div></div>)}
       </div>
     </section>
   )
@@ -50,7 +35,6 @@ export default function AuthScreen({ mode = 'login' }: { mode?: AuthMode }) {
   const isRegister = mode === 'register'
   const router = useRouter()
   
-  const [role, setRole] = useState<Role>('Admin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -75,7 +59,13 @@ export default function AuthScreen({ mode = 'login' }: { mode?: AuthMode }) {
         setLoading(false)
       } else {
         setSubmitted(true)
-        router.push('/?registered=true')
+        const login = await signIn("credentials", {
+          email: String(formData.get("email") ?? "").trim().toLowerCase(),
+          password: String(formData.get("password") ?? ""),
+          redirect: false,
+        })
+        router.push(login?.error ? "/" : "/admin")
+        router.refresh()
       }
     } else {
       const emailValue = formData.get("email") as string
@@ -105,7 +95,7 @@ export default function AuthScreen({ mode = 'login' }: { mode?: AuthMode }) {
           <div className="mb-8 text-center">
             <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6B35] lg:hidden"><GraduationCap className="size-6" /></div>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">{isRegister ? 'Register your school' : 'Welcome back'}</h2>
-            <p className="mt-2 text-sm text-slate-500">{isRegister ? 'Create your EduFlow school workspace' : 'Select your role and sign in'}</p>
+            <p className="mt-2 text-sm text-slate-500">{isRegister ? 'Create your school workspace' : 'Sign in to your school admin dashboard'}</p>
           </div>
 
           {error && (
@@ -147,9 +137,8 @@ export default function AuthScreen({ mode = 'login' }: { mode?: AuthMode }) {
             
             {!isRegister && (
               <>
-                <div className="rounded-xl bg-orange-50 px-4 py-3 text-center text-xs font-medium text-[#d95324]">Signing in as {role}</div>
-                <button type="submit" disabled={loading} className="h-12 rounded-xl bg-[#FF6B35] text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-[#e95b29] disabled:opacity-50">
-                  {loading ? 'Authenticating...' : `Sign in as ${role}`} <span className="ml-1">→</span>
+                                <button type="submit" disabled={loading} className="h-12 rounded-xl bg-[#FF6B35] text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:bg-[#e95b29] disabled:opacity-50">
+                  {loading ? 'Signing in...' : 'Sign in'} <span className="ml-1">→</span>
                 </button>
               </>
             )}
@@ -160,24 +149,20 @@ export default function AuthScreen({ mode = 'login' }: { mode?: AuthMode }) {
               </button>
             )}
             
-            {submitted && <p role="status" className="text-center text-xs font-medium text-emerald-600">{isRegister ? 'Registration request received. Welcome to EduFlow.' : `Demo sign-in submitted as ${role}.`}</p>}
+            {submitted && <p role="status" className="text-center text-xs font-medium text-emerald-600">School created. Opening your dashboard…</p>}
           </form>
           
           {!isRegister && (
             <>
               <div className="my-8 flex items-center gap-4"><div className="h-px flex-1 bg-slate-200" /><span className="text-xs text-slate-400">or</span><div className="h-px flex-1 bg-slate-200" /></div>
-              <div>
-                <div className="mb-3 text-left text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Select role</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {roles.map(({ name, description, icon: Icon }) => (
-                    <button type="button" key={name} onClick={() => { setRole(name); setEmail(demoCredentials[name].email); setPassword(demoCredentials[name].password); setSubmitted(false) }} className={cn('flex items-center gap-3 rounded-xl border p-3 text-left transition', role === name ? 'border-[#FF6B35] bg-orange-50 ring-1 ring-[#FF6B35]' : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/40')}>
-                      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', role === name ? 'bg-[#FF6B35] text-white' : 'bg-slate-100 text-slate-500')}><Icon className="size-4" /></span>
-                      <span><span className="block text-xs font-bold text-slate-800">{name}</span><span className="mt-0.5 block text-[10px] text-slate-400">{description}</span></span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-center text-[11px] text-slate-500">Demo Mode: Click a role above to automatically fill in the test credentials.</div>
-              </div>
+              <button
+                type="button"
+                onClick={() => { setEmail(DEMO_ADMIN.email); setPassword(DEMO_ADMIN.password); setError(null) }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-[#d95324] transition hover:bg-orange-100"
+              >
+                <Sparkles className="size-4" /> Use demo admin account
+              </button>
+              <p className="mt-2 text-center text-[11px] text-slate-500">{DEMO_ADMIN.email} · {DEMO_ADMIN.password}</p>
             </>
           )}
           

@@ -44,7 +44,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <GraduationCap className="size-5" />
         </div>
         <div>
-          <div className="text-lg font-bold tracking-tight text-slate-900">EduFlow</div>
+          <div className="text-lg font-bold tracking-tight text-slate-900">Lumina School</div>
           <div className="text-xs text-slate-400">School Admin</div>
         </div>
         <button onClick={onClose} aria-label="Close menu" className="ml-auto lg:hidden">

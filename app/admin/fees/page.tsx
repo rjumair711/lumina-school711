@@ -10,24 +10,26 @@ export default async function AdminFeesPage() {
   const { schoolId } = await requireSchoolAdminPage()
   await syncOverdueFees(schoolId)
 
-  const classes = await prisma.class.findMany({
-    where: { schoolId },
-    select: { id: true, name: true, section: true },
-    orderBy: [{ name: 'asc' }, { section: 'asc' }]
-  })
-
-  const students = await prisma.student.findMany({
-    where: { schoolId },
-    include: {
-      user: true,
-      class: true,
-      fees: {
-        include: { payments: { orderBy: { paidAt: 'asc' } } },
-        orderBy: { dueDate: 'asc' }
-      }
-    },
-    orderBy: { rollNo: 'asc' }
-  })
+  const [school, classes, students] = await Promise.all([
+    prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } }),
+    prisma.class.findMany({
+      where: { schoolId },
+      select: { id: true, name: true, section: true },
+      orderBy: [{ name: 'asc' }, { section: 'asc' }]
+    }),
+    prisma.student.findMany({
+      where: { schoolId },
+      include: {
+        user: true,
+        class: true,
+        fees: {
+          include: { payments: { orderBy: { paidAt: 'asc' } } },
+          orderBy: { dueDate: 'asc' }
+        }
+      },
+      orderBy: { rollNo: 'asc' }
+    }),
+  ])
 
   const now = new Date()
   const currentMonth = monthKey(now)
@@ -109,5 +111,5 @@ export default async function AdminFeesPage() {
     byClass: [...byClass.values()],
   }
 
-  return <FeesWorkspace classes={classes} students={students} metrics={metrics} charts={charts} />
+  return <FeesWorkspace schoolName={school?.name ?? 'School'} classes={classes} students={students} metrics={metrics} charts={charts} />
 }
